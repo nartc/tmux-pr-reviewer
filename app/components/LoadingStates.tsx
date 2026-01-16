@@ -1,25 +1,15 @@
-import { VscLoading } from 'react-icons/vsc';
+import { Spinner, Text } from '@radix-ui/themes';
 
 interface LoadingSpinnerProps {
-	size?: 'sm' | 'md' | 'lg';
+	size?: '1' | '2' | '3';
 	className?: string;
 }
 
 export function LoadingSpinner({
-	size = 'md',
+	size = '2',
 	className = '',
 }: LoadingSpinnerProps) {
-	const sizeClasses = {
-		sm: 'w-4 h-4',
-		md: 'w-6 h-6',
-		lg: 'w-8 h-8',
-	};
-
-	return (
-		<VscLoading
-			className={`animate-spin text-gray-400 ${sizeClasses[size]} ${className}`}
-		/>
-	);
+	return <Spinner size={size} className={className} />;
 }
 
 interface LoadingOverlayProps {
@@ -32,8 +22,10 @@ export function LoadingOverlay({
 	return (
 		<div className="absolute inset-0 bg-white/80 dark:bg-gray-950/80 flex items-center justify-center z-10">
 			<div className="flex flex-col items-center gap-3">
-				<LoadingSpinner size="lg" />
-				<span className="text-sm text-gray-500">{message}</span>
+				<Spinner size="3" />
+				<Text size="2" color="gray">
+					{message}
+				</Text>
 			</div>
 		</div>
 	);
@@ -47,8 +39,10 @@ export function LoadingCard({ message = 'Loading...' }: LoadingCardProps) {
 	return (
 		<div className="flex items-center justify-center p-8">
 			<div className="flex flex-col items-center gap-3">
-				<LoadingSpinner size="md" />
-				<span className="text-sm text-gray-500">{message}</span>
+				<Spinner size="2" />
+				<Text size="2" color="gray">
+					{message}
+				</Text>
 			</div>
 		</div>
 	);
@@ -97,8 +91,8 @@ export function ProcessingIndicator({
 }: ProcessingIndicatorProps) {
 	return (
 		<div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
-			<LoadingSpinner size="sm" className="text-blue-500" />
-			<span className="text-sm">{message}</span>
+			<Spinner size="1" />
+			<Text size="2">{message}</Text>
 		</div>
 	);
 }
@@ -113,8 +107,8 @@ export function SendingIndicator({
 }: SendingIndicatorProps) {
 	return (
 		<div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg">
-			<LoadingSpinner size="sm" className="text-green-500" />
-			<span className="text-sm">{message}</span>
+			<Spinner size="1" />
+			<Text size="2">{message}</Text>
 		</div>
 	);
 }

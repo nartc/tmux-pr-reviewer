@@ -1,4 +1,4 @@
-import * as Dialog from '@radix-ui/react-dialog';
+import { Button, Dialog, Text, TextArea } from '@radix-ui/themes';
 import { useState } from 'react';
 import {
 	VscCheck,
@@ -40,95 +40,88 @@ export function ProcessPreview({
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
-			<Dialog.Portal>
-				<Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
-				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[80vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl z-50 flex flex-col">
-					<Dialog.Title className="text-lg font-semibold p-4 border-b border-gray-200 dark:border-gray-700">
-						Review Processed Comments
-					</Dialog.Title>
+			<Dialog.Content
+				maxWidth="650px"
+				className="max-h-[80vh] flex flex-col"
+			>
+				<Dialog.Title>Review Processed Comments</Dialog.Title>
 
-					<div className="flex-1 overflow-y-auto p-4 space-y-4">
-						{/* Processed output */}
-						<div>
-							<label
-								htmlFor="processed-output"
-								className="block text-sm font-medium mb-2"
-							>
-								Processed Output (editable)
-							</label>
-							<textarea
-								id="processed-output"
-								value={editedText}
-								onChange={(e) => setEditedText(e.target.value)}
-								className="w-full h-48 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono"
-							/>
-						</div>
+				<div className="flex-1 overflow-y-auto space-y-4 mt-4">
+					{/* Processed output */}
+					<div>
+						<Text size="2" weight="medium" className="mb-2 block">
+							Processed Output (editable)
+						</Text>
+						<TextArea
+							value={editedText}
+							onChange={(e) => setEditedText(e.target.value)}
+							size="2"
+							rows={10}
+							className="font-mono"
+						/>
+					</div>
 
-						{/* Original comments (collapsible) */}
-						<div className="border border-gray-200 dark:border-gray-700 rounded">
-							<button
-								onClick={() => setShowOriginal(!showOriginal)}
-								className="w-full px-3 py-2 flex items-center gap-2 text-sm text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
-								aria-expanded={showOriginal}
-								aria-controls="original-comments-section"
-							>
-								{showOriginal ? (
-									<VscChevronDown
-										className="w-4 h-4"
-										aria-hidden="true"
-									/>
-								) : (
-									<VscChevronRight
-										className="w-4 h-4"
-										aria-hidden="true"
-									/>
-								)}
-								Original Comments ({originalComments.length})
-							</button>
-							{showOriginal && (
-								<div
-									id="original-comments-section"
-									className="px-3 pb-3 space-y-2"
-								>
-									{originalComments.map((comment) => (
-										<div
-											key={comment.id}
-											className="p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm"
-										>
-											<div className="text-xs text-gray-500 mb-1">
-												{comment.file_path}
-												{comment.line_start &&
-													`:${comment.line_start}`}
-											</div>
-											<div className="whitespace-pre-wrap">
-												{comment.content}
-											</div>
-										</div>
-									))}
-								</div>
+					{/* Original comments (collapsible) */}
+					<div className="border border-gray-200 dark:border-gray-700 rounded">
+						<button
+							onClick={() => setShowOriginal(!showOriginal)}
+							className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+							aria-expanded={showOriginal}
+							aria-controls="original-comments-section"
+						>
+							{showOriginal ? (
+								<VscChevronDown aria-hidden="true" />
+							) : (
+								<VscChevronRight aria-hidden="true" />
 							)}
-						</div>
+							<Text size="2" color="gray">
+								Original Comments ({originalComments.length})
+							</Text>
+						</button>
+						{showOriginal && (
+							<div
+								id="original-comments-section"
+								className="px-3 pb-3 space-y-2"
+							>
+								{originalComments.map((comment) => (
+									<div
+										key={comment.id}
+										className="p-2 bg-gray-50 dark:bg-gray-800 rounded"
+									>
+										<Text
+											size="1"
+											color="gray"
+											className="mb-1 block"
+										>
+											{comment.file_path}
+											{comment.line_start &&
+												`:${comment.line_start}`}
+										</Text>
+										<Text
+											size="2"
+											className="whitespace-pre-wrap"
+										>
+											{comment.content}
+										</Text>
+									</div>
+								))}
+							</div>
+						)}
 					</div>
+				</div>
 
-					{/* Actions */}
-					<div className="flex justify-end gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
-						<button
-							onClick={handleCancel}
-							className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-						>
-							<VscClose className="w-4 h-4" aria-hidden="true" />
-							Cancel
-						</button>
-						<button
-							onClick={handleConfirm}
-							className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-						>
-							<VscCheck className="w-4 h-4" aria-hidden="true" />
-							Stage Processed
-						</button>
-					</div>
-				</Dialog.Content>
-			</Dialog.Portal>
+				{/* Actions */}
+				<div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+					<Button variant="soft" color="gray" onClick={handleCancel}>
+						<VscClose aria-hidden="true" />
+						Cancel
+					</Button>
+					<Button onClick={handleConfirm}>
+						<VscCheck aria-hidden="true" />
+						Stage Processed
+					</Button>
+				</div>
+			</Dialog.Content>
 		</Dialog.Root>
 	);
 }

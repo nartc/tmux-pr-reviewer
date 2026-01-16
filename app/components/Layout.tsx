@@ -1,6 +1,6 @@
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { DropdownMenu, IconButton, Text } from '@radix-ui/themes';
 import { useState, type ReactNode } from 'react';
-import { VscChevronLeft, VscChevronRight, VscColorMode } from 'react-icons/vsc';
+import { VscChevronLeft, VscChevronRight, VscSettings } from 'react-icons/vsc';
 import { useTheme } from '../lib/theme.js';
 import { GlobalLoadingBar } from './GlobalLoadingBar.js';
 
@@ -27,21 +27,23 @@ export function Layout({
 			{/* Header */}
 			<header className="h-12 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
 				<div className="flex items-center gap-4">
-					<h1 className="text-lg font-semibold">PR Reviewer</h1>
+					<Text size="4" weight="bold">
+						PR Reviewer
+					</Text>
 					{header}
 				</div>
 				<div className="flex items-center gap-2">
 					{headerActions}
-					<ThemeToggle />
+					<SettingsMenu />
 				</div>
 			</header>
 
 			{/* Small screen message */}
 			<div className="flex md:hidden items-center justify-center flex-1 p-4 text-center text-gray-500">
-				<p>
+				<Text color="gray">
 					Please use a larger screen (tablet or desktop) for the best
 					experience.
-				</p>
+				</Text>
 			</div>
 
 			{/* Main content area - hidden on small screens */}
@@ -55,9 +57,11 @@ export function Layout({
 						}`}
 					>
 						{/* Collapse toggle */}
-						<button
+						<IconButton
+							variant="ghost"
+							size="1"
 							onClick={() => setLeftCollapsed(!leftCollapsed)}
-							className="h-8 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-800"
+							className="!w-full !rounded-none h-8"
 							aria-label={
 								leftCollapsed
 									? 'Expand file explorer'
@@ -66,17 +70,11 @@ export function Layout({
 							aria-expanded={!leftCollapsed}
 						>
 							{leftCollapsed ? (
-								<VscChevronRight
-									className="w-4 h-4"
-									aria-hidden="true"
-								/>
+								<VscChevronRight aria-hidden="true" />
 							) : (
-								<VscChevronLeft
-									className="w-4 h-4"
-									aria-hidden="true"
-								/>
+								<VscChevronLeft aria-hidden="true" />
 							)}
-						</button>
+						</IconButton>
 						{/* Sidebar content */}
 						<div
 							className={`flex-1 overflow-y-auto ${leftCollapsed ? 'hidden' : ''}`}
@@ -103,58 +101,49 @@ export function Layout({
 	);
 }
 
-function ThemeToggle() {
-	const { theme, setTheme } = useTheme();
+function SettingsMenu() {
+	const { theme, setTheme, density, setDensity } = useTheme();
 
 	return (
 		<DropdownMenu.Root>
-			<DropdownMenu.Trigger asChild>
-				<button
-					className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-					aria-label="Toggle theme"
-				>
-					<VscColorMode className="w-5 h-5" aria-hidden="true" />
-				</button>
+			<DropdownMenu.Trigger>
+				<IconButton variant="ghost" aria-label="Settings">
+					<VscSettings />
+				</IconButton>
 			</DropdownMenu.Trigger>
 
-			<DropdownMenu.Portal>
-				<DropdownMenu.Content
-					className="min-w-[120px] bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 p-1 z-50"
-					sideOffset={5}
-					align="end"
+			<DropdownMenu.Content align="end" sideOffset={5}>
+				<DropdownMenu.Label>Theme</DropdownMenu.Label>
+				<DropdownMenu.RadioGroup
+					value={theme}
+					onValueChange={(v) => setTheme(v as typeof theme)}
 				>
-					<DropdownMenu.Item
-						className={`px-3 py-2 text-sm rounded cursor-pointer outline-none ${
-							theme === 'light'
-								? 'bg-gray-100 dark:bg-gray-800'
-								: 'hover:bg-gray-100 dark:hover:bg-gray-800'
-						}`}
-						onSelect={() => setTheme('light')}
-					>
+					<DropdownMenu.RadioItem value="light">
 						Light
-					</DropdownMenu.Item>
-					<DropdownMenu.Item
-						className={`px-3 py-2 text-sm rounded cursor-pointer outline-none ${
-							theme === 'dark'
-								? 'bg-gray-100 dark:bg-gray-800'
-								: 'hover:bg-gray-100 dark:hover:bg-gray-800'
-						}`}
-						onSelect={() => setTheme('dark')}
-					>
+					</DropdownMenu.RadioItem>
+					<DropdownMenu.RadioItem value="dark">
 						Dark
-					</DropdownMenu.Item>
-					<DropdownMenu.Item
-						className={`px-3 py-2 text-sm rounded cursor-pointer outline-none ${
-							theme === 'system'
-								? 'bg-gray-100 dark:bg-gray-800'
-								: 'hover:bg-gray-100 dark:hover:bg-gray-800'
-						}`}
-						onSelect={() => setTheme('system')}
-					>
+					</DropdownMenu.RadioItem>
+					<DropdownMenu.RadioItem value="system">
 						System
-					</DropdownMenu.Item>
-				</DropdownMenu.Content>
-			</DropdownMenu.Portal>
+					</DropdownMenu.RadioItem>
+				</DropdownMenu.RadioGroup>
+
+				<DropdownMenu.Separator />
+
+				<DropdownMenu.Label>Density</DropdownMenu.Label>
+				<DropdownMenu.RadioGroup
+					value={density}
+					onValueChange={(v) => setDensity(v as typeof density)}
+				>
+					<DropdownMenu.RadioItem value="normal">
+						Normal
+					</DropdownMenu.RadioItem>
+					<DropdownMenu.RadioItem value="compact">
+						Compact
+					</DropdownMenu.RadioItem>
+				</DropdownMenu.RadioGroup>
+			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 	);
 }
@@ -164,8 +153,10 @@ export function SimpleLayout({ children }: { children: ReactNode }) {
 	return (
 		<div className="h-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
 			<header className="h-12 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
-				<h1 className="text-lg font-semibold">PR Reviewer</h1>
-				<ThemeToggle />
+				<Text size="4" weight="bold">
+					PR Reviewer
+				</Text>
+				<SettingsMenu />
 			</header>
 			<main className="flex-1 overflow-auto">{children}</main>
 		</div>

@@ -5,6 +5,7 @@ import type {
 	Hunk,
 	ParsedPatch,
 } from '@pierre/diffs';
+import { Badge, Button, DropdownMenu, Spinner, Text } from '@radix-ui/themes';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	VscAdd,
@@ -48,14 +49,12 @@ interface DiffViewerProps {
 	) => void;
 }
 
-// Annotation metadata for comment form
 interface CommentAnnotation {
 	type: 'comment-form';
 	lineStart: number;
 	lineEnd?: number;
 }
 
-// Dynamically loaded diff component to avoid SSR issues with @pierre/diffs
 function DiffViewerClient({
 	rawDiff,
 	className,
@@ -90,7 +89,6 @@ function DiffViewerClient({
 	}
 
 	useEffect(() => {
-		// Dynamic import to avoid SSR
 		Promise.all([
 			import('@pierre/diffs/react'),
 			import('@pierre/diffs'),
@@ -107,7 +105,6 @@ function DiffViewerClient({
 		});
 	}, []);
 
-	// Scroll to selected file
 	useEffect(() => {
 		if (selectedFile && fileRefs.current.has(selectedFile)) {
 			const element = fileRefs.current.get(selectedFile);
@@ -126,7 +123,6 @@ function DiffViewerClient({
 		[],
 	);
 
-	// Handle single line comment from hover button
 	const handleAddComment = useCallback(
 		(
 			filePath: string,
@@ -144,7 +140,6 @@ function DiffViewerClient({
 		[],
 	);
 
-	// Handle line selection end (click+drag)
 	const handleLineSelectionEnd = useCallback(
 		(filePath: string, range: SelectedLineRange | null) => {
 			if (range) {
@@ -160,16 +155,10 @@ function DiffViewerClient({
 		[],
 	);
 
-	// Handle file-level comment
 	const handleFileComment = useCallback((filePath: string) => {
-		setCommentForm({
-			filePath,
-			lineStart: 1,
-			side: 'additions',
-		});
+		setCommentForm({ filePath, lineStart: 1, side: 'additions' });
 	}, []);
 
-	// Handle hunk-level comment
 	const handleHunkComment = useCallback(
 		(filePath: string, hunk: Hunk, _hunkIndex: number) => {
 			setCommentForm({
@@ -178,7 +167,6 @@ function DiffViewerClient({
 				lineEnd: hunk.additionStart + hunk.additionLines - 1,
 				side: 'additions',
 			});
-			// Scroll to the comment form after it renders
 			setTimeout(() => {
 				const commentFormEl = document.querySelector(
 					'[data-comment-form]',
@@ -199,11 +187,11 @@ function DiffViewerClient({
 
 	if (!DiffComponents) {
 		return (
-			<div className="flex items-center justify-center h-full text-gray-500">
-				<div className="flex items-center gap-2">
-					<div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+			<div className="flex items-center justify-center h-full gap-2">
+				<Spinner size="2" />
+				<Text size="2" color="gray">
 					Loading diff viewer...
-				</div>
+				</Text>
 			</div>
 		);
 	}
@@ -217,7 +205,6 @@ function DiffViewerClient({
 		defaultDiffOptions,
 	} = DiffComponents;
 
-	// Parse the multi-file patch
 	const parsedPatches = parsePatchFiles(rawDiff);
 	const allFiles = parsedPatches.flatMap((p) => p.files || []);
 
@@ -235,7 +222,6 @@ function DiffViewerClient({
 					const isCommentingOnThisFile =
 						commentForm?.filePath === filePath;
 
-					// Create annotation for comment form
 					const lineAnnotations = isCommentingOnThisFile
 						? [
 								{
@@ -355,7 +341,6 @@ function StickyFileHeader({
 	onAddComment,
 	onAddHunkComment,
 }: StickyFileHeaderProps) {
-	const [showHunkMenu, setShowHunkMenu] = useState(false);
 	const fileName = fileDiff.name || fileDiff.prevName || 'unknown';
 	const changeType = fileDiff.type;
 	const hunks = fileDiff.hunks || [];
@@ -378,27 +363,27 @@ function StickyFileHeader({
 		switch (type) {
 			case 'new':
 				return (
-					<span className="text-xs px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+					<Badge color="green" size="1">
 						Added
-					</span>
+					</Badge>
 				);
 			case 'deleted':
 				return (
-					<span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+					<Badge color="red" size="1">
 						Deleted
-					</span>
+					</Badge>
 				);
 			case 'rename-pure':
 				return (
-					<span className="text-xs px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+					<Badge color="amber" size="1">
 						Renamed
-					</span>
+					</Badge>
 				);
 			case 'rename-changed':
 				return (
-					<span className="text-xs px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+					<Badge color="amber" size="1">
 						Renamed & Modified
-					</span>
+					</Badge>
 				);
 			default:
 				return null;
@@ -414,53 +399,43 @@ function StickyFileHeader({
 		<div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
 			<div className="flex items-center gap-2 min-w-0">
 				{getIcon(changeType)}
-				<span className="font-mono text-sm truncate">{fileName}</span>
+				<Text size="2" className="font-mono truncate">
+					{fileName}
+				</Text>
 				{fileDiff.prevName && fileDiff.prevName !== fileName && (
-					<span className="text-xs text-gray-500">
+					<Text size="1" color="gray">
 						← {fileDiff.prevName}
-					</span>
+					</Text>
 				)}
 				{getLabel(changeType)}
 			</div>
 			<div className="relative flex items-center gap-1">
 				{hunks.length > 0 && (
-					<div className="relative">
-						<button
-							onClick={() => setShowHunkMenu(!showHunkMenu)}
-							className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded"
-							title="Comment on hunk"
-						>
-							<VscComment className="w-3.5 h-3.5" />
-							<span>Hunk ({hunks.length})</span>
-						</button>
-						{showHunkMenu && (
-							<div className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-20">
-								<div className="py-1 max-h-48 overflow-y-auto">
-									{hunks.map((hunk, index) => (
-										<button
-											key={index}
-											onClick={() => {
-												onAddHunkComment(hunk, index);
-												setShowHunkMenu(false);
-											}}
-											className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700 truncate"
-										>
-											{getHunkLabel(hunk, index)}
-										</button>
-									))}
-								</div>
-							</div>
-						)}
-					</div>
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>
+							<Button variant="ghost" size="1">
+								<VscComment aria-hidden="true" />
+								Hunk ({hunks.length})
+							</Button>
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="end">
+							{hunks.map((hunk, index) => (
+								<DropdownMenu.Item
+									key={index}
+									onSelect={() =>
+										onAddHunkComment(hunk, index)
+									}
+								>
+									{getHunkLabel(hunk, index)}
+								</DropdownMenu.Item>
+							))}
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
 				)}
-				<button
-					onClick={onAddComment}
-					className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded"
-					title="Add file comment"
-				>
-					<VscComment className="w-3.5 h-3.5" />
-					<span>File</span>
-				</button>
+				<Button variant="ghost" size="1" onClick={onAddComment}>
+					<VscComment aria-hidden="true" />
+					File
+				</Button>
 			</div>
 		</div>
 	);
@@ -482,19 +457,21 @@ export function DiffViewer({
 
 	if (!rawDiff) {
 		return (
-			<div className="flex items-center justify-center h-full text-gray-500">
-				No changes to display
+			<div className="flex items-center justify-center h-full">
+				<Text size="2" color="gray">
+					No changes to display
+				</Text>
 			</div>
 		);
 	}
 
 	if (!isClient) {
 		return (
-			<div className="flex items-center justify-center h-full text-gray-500">
-				<div className="flex items-center gap-2">
-					<div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+			<div className="flex items-center justify-center h-full gap-2">
+				<Spinner size="2" />
+				<Text size="2" color="gray">
 					Loading diff...
-				</div>
+				</Text>
 			</div>
 		);
 	}

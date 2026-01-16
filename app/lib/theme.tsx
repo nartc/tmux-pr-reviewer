@@ -70,19 +70,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 		return () => mediaQuery.removeEventListener('change', handler);
 	}, [theme]);
 
-	// Apply theme to document
+	// Apply theme to document (for non-Radix elements)
 	useEffect(() => {
 		document.documentElement.classList.remove('light', 'dark');
 		document.documentElement.classList.add(resolvedTheme);
 	}, [resolvedTheme]);
-
-	// Apply density to body
-	useEffect(() => {
-		document.body.classList.remove('normal', 'compact');
-		if (density === 'compact') {
-			document.body.classList.add('compact');
-		}
-	}, [density]);
 
 	const setTheme = (newTheme: Theme) => {
 		setThemeState(newTheme);
@@ -110,4 +102,9 @@ export function useTheme() {
 		throw new Error('useTheme must be used within a ThemeProvider');
 	}
 	return context;
+}
+
+// Helper to map density to Radix scaling
+export function densityToScaling(density: Density): '90%' | '100%' {
+	return density === 'compact' ? '90%' : '100%';
 }

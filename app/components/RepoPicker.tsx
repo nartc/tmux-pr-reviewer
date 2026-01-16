@@ -1,5 +1,6 @@
+import { Button, Spinner, Text, TextField } from '@radix-ui/themes';
 import { useEffect, useState } from 'react';
-import { VscLoading, VscRepo } from 'react-icons/vsc';
+import { VscRepo } from 'react-icons/vsc';
 
 interface RepoPickerProps {
 	onSelect: (path: string) => void;
@@ -44,12 +45,10 @@ export function RepoPicker({ onSelect, onCancel }: RepoPickerProps) {
 		<div className="flex flex-col h-full max-h-[60vh]">
 			{/* Search input */}
 			<div className="p-4 border-b border-gray-200 dark:border-gray-700">
-				<input
-					type="text"
+				<TextField.Root
 					placeholder="Filter repositories..."
 					value={filter}
 					onChange={(e) => setFilter(e.target.value)}
-					className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
 					autoFocus
 				/>
 			</div>
@@ -57,19 +56,25 @@ export function RepoPicker({ onSelect, onCancel }: RepoPickerProps) {
 			{/* Repo list */}
 			<div className="flex-1 overflow-y-auto">
 				{loading ? (
-					<div className="flex items-center justify-center p-8">
-						<VscLoading className="w-6 h-6 animate-spin text-gray-400" />
-						<span className="ml-2 text-gray-500">
+					<div className="flex items-center justify-center p-8 gap-2">
+						<Spinner size="2" />
+						<Text size="2" color="gray">
 							Scanning for repositories...
-						</span>
+						</Text>
 					</div>
 				) : error ? (
-					<div className="p-4 text-red-500">{error}</div>
+					<div className="p-4">
+						<Text size="2" color="red">
+							{error}
+						</Text>
+					</div>
 				) : filteredRepos.length === 0 ? (
-					<div className="p-4 text-gray-500 text-center">
-						{filter
-							? 'No repositories match your filter'
-							: 'No repositories found'}
+					<div className="p-4 text-center">
+						<Text size="2" color="gray">
+							{filter
+								? 'No repositories match your filter'
+								: 'No repositories found'}
+						</Text>
 					</div>
 				) : (
 					<ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -81,12 +86,20 @@ export function RepoPicker({ onSelect, onCancel }: RepoPickerProps) {
 								>
 									<VscRepo className="w-5 h-5 text-gray-400 shrink-0" />
 									<div className="min-w-0">
-										<div className="font-medium truncate">
+										<Text
+											size="2"
+											weight="medium"
+											className="truncate block"
+										>
 											{repo.name}
-										</div>
-										<div className="text-sm text-gray-500 truncate">
+										</Text>
+										<Text
+											size="1"
+											color="gray"
+											className="truncate block"
+										>
 											{repo.path}
-										</div>
+										</Text>
 									</div>
 								</button>
 							</li>
@@ -97,12 +110,9 @@ export function RepoPicker({ onSelect, onCancel }: RepoPickerProps) {
 
 			{/* Footer */}
 			<div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-				<button
-					onClick={onCancel}
-					className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-				>
+				<Button variant="soft" color="gray" onClick={onCancel}>
 					Cancel
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

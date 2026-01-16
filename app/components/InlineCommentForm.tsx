@@ -1,3 +1,4 @@
+import { Button, IconButton, Kbd, Text, TextArea } from '@radix-ui/themes';
 import { useState } from 'react';
 import { VscClose } from 'react-icons/vsc';
 import { useAsyncAction } from '../lib/use-async-action';
@@ -78,23 +79,26 @@ export function InlineCommentForm({
 		>
 			{/* Header */}
 			<div className="flex items-center justify-between mb-2">
-				<span className="text-xs text-gray-500">{lineInfo}</span>
-				<button
+				<Text size="1" color="gray">
+					{lineInfo}
+				</Text>
+				<IconButton
+					size="1"
+					variant="ghost"
 					onClick={onClose}
-					className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 					aria-label="Close comment form"
 				>
-					<VscClose className="w-4 h-4" aria-hidden="true" />
-				</button>
+					<VscClose aria-hidden="true" />
+				</IconButton>
 			</div>
 
 			{/* Textarea */}
-			<textarea
+			<TextArea
 				value={content}
 				onChange={(e) => setContent(e.target.value)}
 				onKeyDown={handleKeyDown}
 				placeholder="Add a comment..."
-				className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+				size="2"
 				rows={3}
 				autoFocus
 				aria-label="Comment text"
@@ -102,37 +106,26 @@ export function InlineCommentForm({
 
 			{/* Actions */}
 			<div className="flex items-center justify-end mt-2 gap-2">
-				<button
-					onClick={onClose}
-					className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-1"
-				>
-					Cancel
-					<kbd className="px-1 py-0.5 text-[10px] bg-gray-100 dark:bg-gray-800 rounded">
-						Esc
-					</kbd>
-				</button>
+				<Button variant="ghost" size="1" onClick={onClose}>
+					Cancel <Kbd size="1">Esc</Kbd>
+				</Button>
 				{onSendNow && (
-					<button
+					<Button
+						size="1"
+						color="green"
 						onClick={handleSendNow}
 						disabled={!content.trim() || isPending}
-						className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
 					>
-						Send Now
-						<kbd className="px-1 py-0.5 text-[10px] bg-green-600 rounded">
-							⌘⇧↵
-						</kbd>
-					</button>
+						Send Now <Kbd size="1">⌘⇧↵</Kbd>
+					</Button>
 				)}
-				<button
+				<Button
+					size="1"
 					onClick={handleQueue}
 					disabled={!content.trim() || isPending}
-					className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
 				>
-					Queue
-					<kbd className="px-1 py-0.5 text-[10px] bg-blue-600 rounded">
-						⌘↵
-					</kbd>
-				</button>
+					Queue <Kbd size="1">⌘↵</Kbd>
+				</Button>
 			</div>
 		</div>
 	);

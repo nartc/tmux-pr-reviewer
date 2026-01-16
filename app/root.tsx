@@ -1,3 +1,5 @@
+import { Theme } from '@radix-ui/themes';
+import '@radix-ui/themes/styles.css';
 import {
 	isRouteErrorResponse,
 	Links,
@@ -11,7 +13,7 @@ import { Toaster } from 'sonner';
 import type { Route } from './+types/root';
 import './app.css';
 import { AsyncStateProvider } from './lib/async-state.js';
-import { ThemeProvider } from './lib/theme.js';
+import { densityToScaling, ThemeProvider, useTheme } from './lib/theme.js';
 
 export const links: Route.LinksFunction = () => [
 	{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -26,6 +28,20 @@ export const links: Route.LinksFunction = () => [
 	},
 ];
 
+// Inline script to prevent FOUC - sets theme class before React hydrates
+const themeScript = `
+(function() {
+  const stored = localStorage.getItem('pr-reviewer-theme');
+  let theme = 'light';
+  if (stored === 'dark') {
+    theme = 'dark';
+  } else if (stored === 'system' || !stored) {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.classList.add(theme);
+})();
+`;
+
 export function Layout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en">
@@ -35,6 +51,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 					name="viewport"
 					content="width=device-width, initial-scale=1"
 				/>
+				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 				<Meta />
 				<Links />
 			</head>
@@ -47,22 +64,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
 	);
 }
 
+function AppContent() {
+	const { resolvedTheme, density } = useTheme();
+
+	return (
+		<Theme
+			appearance={resolvedTheme}
+			accentColor="blue"
+			grayColor="slate"
+			radius="medium"
+			scaling={densityToScaling(density)}
+			panelBackground="translucent"
+			className="!bg-transparent"
+		>
+			<AsyncStateProvider>
+				<Outlet />
+				<Toaster position="bottom-right" theme={resolvedTheme} />
+			</AsyncStateProvider>
+		</Theme>
+	);
+}
+
 export default function App() {
 	return (
 		<ThemeProvider>
-			<AsyncStateProvider>
-				<Outlet />
-				<Toaster
-					position="bottom-right"
-					toastOptions={{
-						classNames: {
-							toast: 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700',
-							title: 'text-gray-900 dark:text-gray-100',
-							description: 'text-gray-500 dark:text-gray-400',
-						},
-					}}
-				/>
-			</AsyncStateProvider>
+			<AppContent />
 		</ThemeProvider>
 	);
 }

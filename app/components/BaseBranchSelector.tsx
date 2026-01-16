@@ -1,4 +1,4 @@
-import * as Dialog from '@radix-ui/react-dialog';
+import { Button, Dialog, Spinner, Text, TextField } from '@radix-ui/themes';
 import { useEffect, useState } from 'react';
 import { VscCheck, VscSourceControl } from 'react-icons/vsc';
 import { useFetcher } from 'react-router';
@@ -24,7 +24,6 @@ export function BaseBranchSelector({
 
 	useEffect(() => {
 		if (open) {
-			// Fetch available branches
 			fetchBranches();
 		}
 	}, [open]);
@@ -32,8 +31,6 @@ export function BaseBranchSelector({
 	const fetchBranches = async () => {
 		setLoading(true);
 		try {
-			// For now, use common branch names
-			// In a full implementation, this would fetch from git
 			setBranches(['main', 'master', 'develop', 'staging']);
 		} catch (error) {
 			console.error('Failed to fetch branches:', error);
@@ -42,7 +39,6 @@ export function BaseBranchSelector({
 	};
 
 	const handleSave = () => {
-		// Update the session's base branch
 		fetcher.submit(
 			{
 				intent: 'updateBaseBranch',
@@ -57,91 +53,73 @@ export function BaseBranchSelector({
 
 	return (
 		<Dialog.Root open={open} onOpenChange={setOpen}>
-			<Dialog.Trigger asChild>
+			<Dialog.Trigger>
 				<button
 					className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
 					aria-label={`Change base branch (currently ${currentBaseBranch})`}
 				>
-					<VscSourceControl className="w-4 h-4" aria-hidden="true" />
+					<VscSourceControl aria-hidden="true" />
 					<span>{currentBaseBranch}</span>
 				</button>
 			</Dialog.Trigger>
 
-			<Dialog.Portal>
-				<Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
-				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white dark:bg-gray-900 rounded-lg shadow-xl z-50 p-6">
-					<Dialog.Title className="text-lg font-semibold mb-4">
-						Select Base Branch
-					</Dialog.Title>
+			<Dialog.Content maxWidth="350px">
+				<Dialog.Title>Select Base Branch</Dialog.Title>
 
+				{loading ? (
+					<div className="flex items-center justify-center py-8">
+						<Spinner size="3" />
+					</div>
+				) : (
 					<div
+						className="space-y-2 my-4"
 						role="radiogroup"
 						aria-label="Select base branch"
-						className="space-y-2 mb-6"
 					>
-						{loading ? (
-							<div className="text-sm text-gray-500">
-								Loading branches...
-							</div>
-						) : (
-							branches.map((branch) => (
-								<button
-									key={branch}
-									onClick={() => setSelectedBranch(branch)}
-									role="radio"
-									aria-checked={selectedBranch === branch}
-									className={`w-full px-3 py-2 text-left rounded flex items-center justify-between transition-colors ${
-										selectedBranch === branch
-											? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-											: 'hover:bg-gray-100 dark:hover:bg-gray-800'
-									}`}
-								>
-									<span className="text-sm">{branch}</span>
-									{selectedBranch === branch && (
-										<VscCheck
-											className="w-4 h-4"
-											aria-hidden="true"
-										/>
-									)}
-								</button>
-							))
-						)}
-					</div>
-
-					{/* Custom branch input */}
-					<div className="mb-6">
-						<label
-							htmlFor="custom-branch-input"
-							className="block text-sm font-medium mb-2"
-						>
-							Or enter a custom branch:
-						</label>
-						<input
-							id="custom-branch-input"
-							type="text"
-							value={selectedBranch}
-							onChange={(e) => setSelectedBranch(e.target.value)}
-							className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="branch-name"
-						/>
-					</div>
-
-					<div className="flex justify-end gap-2">
-						<Dialog.Close asChild>
-							<button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-								Cancel
+						{branches.map((branch) => (
+							<button
+								key={branch}
+								onClick={() => setSelectedBranch(branch)}
+								role="radio"
+								aria-checked={selectedBranch === branch}
+								className={`w-full px-3 py-2 text-left rounded flex items-center justify-between transition-colors ${
+									selectedBranch === branch
+										? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+										: 'hover:bg-gray-100 dark:hover:bg-gray-800'
+								}`}
+							>
+								<Text size="2">{branch}</Text>
+								{selectedBranch === branch && (
+									<VscCheck aria-hidden="true" />
+								)}
 							</button>
-						</Dialog.Close>
-						<button
-							onClick={handleSave}
-							disabled={!selectedBranch}
-							className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-						>
-							Apply
-						</button>
+						))}
 					</div>
-				</Dialog.Content>
-			</Dialog.Portal>
+				)}
+
+				{/* Custom branch input */}
+				<div className="mb-4">
+					<Text size="2" weight="medium" className="mb-2 block">
+						Or enter a custom branch:
+					</Text>
+					<TextField.Root
+						value={selectedBranch}
+						onChange={(e) => setSelectedBranch(e.target.value)}
+						placeholder="branch-name"
+					/>
+				</div>
+
+				<div className="flex justify-end gap-2">
+					<Dialog.Close>
+						<Button variant="soft" color="gray">
+							Cancel
+						</Button>
+					</Dialog.Close>
+					<Button onClick={handleSave} disabled={!selectedBranch}>
+						Apply
+					</Button>
+				</div>
+			</Dialog.Content>
 		</Dialog.Root>
 	);
 }

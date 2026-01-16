@@ -1,4 +1,11 @@
-import * as Dialog from '@radix-ui/react-dialog';
+import {
+	Button,
+	Dialog,
+	IconButton,
+	Kbd,
+	SegmentedControl,
+	Text,
+} from '@radix-ui/themes';
 import { useEffect, useState } from 'react';
 import { VscCheck, VscSettingsGear } from 'react-icons/vsc';
 import { useTheme } from '../lib/theme.js';
@@ -29,177 +36,123 @@ export function SettingsModal({
 
 	return (
 		<Dialog.Root open={open} onOpenChange={setOpen}>
-			<Dialog.Trigger asChild>
-				<button
-					className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-					aria-label="Settings"
-				>
-					<VscSettingsGear className="w-5 h-5" aria-hidden="true" />
-				</button>
+			<Dialog.Trigger>
+				<IconButton variant="ghost" aria-label="Settings">
+					<VscSettingsGear aria-hidden="true" />
+				</IconButton>
 			</Dialog.Trigger>
 
-			<Dialog.Portal>
-				<Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
-				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-gray-900 rounded-lg shadow-xl z-50 p-6">
-					<Dialog.Title className="text-lg font-semibold mb-6">
-						Settings
-					</Dialog.Title>
+			<Dialog.Content maxWidth="450px">
+				<Dialog.Title>Settings</Dialog.Title>
 
-					<div className="space-y-6">
-						{/* Theme */}
-						<div>
-							<label
-								id="theme-label"
-								className="block text-sm font-medium mb-3"
-							>
-								Theme
-							</label>
-							<div
-								role="radiogroup"
-								aria-labelledby="theme-label"
-								className="flex gap-2"
-							>
-								{(['light', 'dark', 'system'] as const).map(
-									(t) => (
-										<button
-											key={t}
-											onClick={() => setTheme(t)}
-											role="radio"
-											aria-checked={theme === t}
-											className={`flex-1 px-3 py-2 text-sm rounded border transition-colors capitalize ${
-												theme === t
-													? 'bg-blue-500 text-white border-blue-500'
-													: 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-											}`}
-										>
-											{t}
-										</button>
-									),
-								)}
-							</div>
-						</div>
-
-						{/* Diff Style */}
-						<div>
-							<label
-								id="diff-style-label"
-								className="block text-sm font-medium mb-3"
-							>
-								Diff View
-							</label>
-							<div
-								role="radiogroup"
-								aria-labelledby="diff-style-label"
-								className="flex gap-2"
-							>
-								<button
-									onClick={() => setLocalDiffStyle('split')}
-									role="radio"
-									aria-checked={localDiffStyle === 'split'}
-									className={`flex-1 px-3 py-2 text-sm rounded border transition-colors ${
-										localDiffStyle === 'split'
-											? 'bg-blue-500 text-white border-blue-500'
-											: 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-									}`}
-								>
-									Split View
-								</button>
-								<button
-									onClick={() => setLocalDiffStyle('unified')}
-									role="radio"
-									aria-checked={localDiffStyle === 'unified'}
-									className={`flex-1 px-3 py-2 text-sm rounded border transition-colors ${
-										localDiffStyle === 'unified'
-											? 'bg-blue-500 text-white border-blue-500'
-											: 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-									}`}
-								>
-									Unified View
-								</button>
-							</div>
-						</div>
-
-						{/* Density */}
-						<div>
-							<label
-								id="density-label"
-								className="block text-sm font-medium mb-3"
-							>
-								UI Density
-							</label>
-							<div
-								role="radiogroup"
-								aria-labelledby="density-label"
-								className="flex gap-2"
-							>
-								{(['normal', 'compact'] as const).map((d) => (
-									<button
-										key={d}
-										onClick={() => setDensity(d)}
-										role="radio"
-										aria-checked={density === d}
-										className={`flex-1 px-3 py-2 text-sm rounded border transition-colors capitalize ${
-											density === d
-												? 'bg-blue-500 text-white border-blue-500'
-												: 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-										}`}
-									>
-										{d}
-									</button>
-								))}
-							</div>
-						</div>
-
-						{/* Keyboard Shortcuts */}
-						<div>
-							<label className="block text-sm font-medium mb-3">
-								Keyboard Shortcuts
-							</label>
-							<div className="text-sm text-gray-500 space-y-2">
-								<div className="flex justify-between">
-									<span>Close modal / Cancel</span>
-									<kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-										Esc
-									</kbd>
-								</div>
-								<div className="flex justify-between">
-									<span>Submit / Queue comment</span>
-									<kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-										⌘ + Enter
-									</kbd>
-								</div>
-								<div className="flex justify-between">
-									<span>Navigate down</span>
-									<kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-										j
-									</kbd>
-								</div>
-								<div className="flex justify-between">
-									<span>Navigate up</span>
-									<kbd className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-										k
-									</kbd>
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-						<Dialog.Close asChild>
-							<button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-								Cancel
-							</button>
-						</Dialog.Close>
-						<button
-							onClick={handleSave}
-							className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+				<div className="space-y-6 mt-4">
+					{/* Theme */}
+					<div>
+						<Text size="2" weight="medium" className="mb-3 block">
+							Theme
+						</Text>
+						<SegmentedControl.Root
+							value={theme}
+							onValueChange={(v) => setTheme(v as typeof theme)}
 						>
-							<VscCheck className="w-4 h-4" aria-hidden="true" />
-							Save
-						</button>
+							<SegmentedControl.Item value="light">
+								Light
+							</SegmentedControl.Item>
+							<SegmentedControl.Item value="dark">
+								Dark
+							</SegmentedControl.Item>
+							<SegmentedControl.Item value="system">
+								System
+							</SegmentedControl.Item>
+						</SegmentedControl.Root>
 					</div>
-				</Dialog.Content>
-			</Dialog.Portal>
+
+					{/* Diff Style */}
+					<div>
+						<Text size="2" weight="medium" className="mb-3 block">
+							Diff View
+						</Text>
+						<SegmentedControl.Root
+							value={localDiffStyle}
+							onValueChange={(v) =>
+								setLocalDiffStyle(v as DiffStyle)
+							}
+						>
+							<SegmentedControl.Item value="split">
+								Split View
+							</SegmentedControl.Item>
+							<SegmentedControl.Item value="unified">
+								Unified View
+							</SegmentedControl.Item>
+						</SegmentedControl.Root>
+					</div>
+
+					{/* Density */}
+					<div>
+						<Text size="2" weight="medium" className="mb-3 block">
+							UI Density
+						</Text>
+						<SegmentedControl.Root
+							value={density}
+							onValueChange={(v) =>
+								setDensity(v as typeof density)
+							}
+						>
+							<SegmentedControl.Item value="normal">
+								Normal
+							</SegmentedControl.Item>
+							<SegmentedControl.Item value="compact">
+								Compact
+							</SegmentedControl.Item>
+						</SegmentedControl.Root>
+					</div>
+
+					{/* Keyboard Shortcuts */}
+					<div>
+						<Text size="2" weight="medium" className="mb-3 block">
+							Keyboard Shortcuts
+						</Text>
+						<div className="space-y-2">
+							<div className="flex justify-between items-center">
+								<Text size="2" color="gray">
+									Close modal / Cancel
+								</Text>
+								<Kbd>Esc</Kbd>
+							</div>
+							<div className="flex justify-between items-center">
+								<Text size="2" color="gray">
+									Submit / Queue comment
+								</Text>
+								<Kbd>⌘ + Enter</Kbd>
+							</div>
+							<div className="flex justify-between items-center">
+								<Text size="2" color="gray">
+									Navigate down
+								</Text>
+								<Kbd>j</Kbd>
+							</div>
+							<div className="flex justify-between items-center">
+								<Text size="2" color="gray">
+									Navigate up
+								</Text>
+								<Kbd>k</Kbd>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+					<Dialog.Close>
+						<Button variant="soft" color="gray">
+							Cancel
+						</Button>
+					</Dialog.Close>
+					<Button onClick={handleSave}>
+						<VscCheck aria-hidden="true" />
+						Save
+					</Button>
+				</div>
+			</Dialog.Content>
 		</Dialog.Root>
 	);
 }

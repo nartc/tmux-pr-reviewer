@@ -1,4 +1,4 @@
-import { Config, Context, Effect, Layer } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 
 // Config schema
 export interface AppConfig {
@@ -17,47 +17,7 @@ export interface ConfigService {
 
 export const ConfigService = Context.GenericTag<ConfigService>('ConfigService');
 
-// Load config from environment
-const loadConfig = Effect.gen(function* () {
-	const aiProvider = yield* Config.string('AI_PROVIDER').pipe(
-		Config.withDefault(''),
-		Effect.map((v) => v || undefined),
-	);
-
-	const googleApiKey = yield* Config.string('GOOGLE_API_KEY').pipe(
-		Config.withDefault(''),
-		Effect.map((v) => v || undefined),
-	);
-
-	const openaiApiKey = yield* Config.string('OPENAI_API_KEY').pipe(
-		Config.withDefault(''),
-		Effect.map((v) => v || undefined),
-	);
-
-	const anthropicApiKey = yield* Config.string('ANTHROPIC_API_KEY').pipe(
-		Config.withDefault(''),
-		Effect.map((v) => v || undefined),
-	);
-
-	const repoScanMaxDepth = yield* Config.number('REPO_SCAN_MAX_DEPTH').pipe(
-		Config.withDefault(3),
-	);
-
-	const repoScanRoot = yield* Config.string('REPO_SCAN_ROOT').pipe(
-		Config.withDefault(process.env.HOME || '/'),
-	);
-
-	return {
-		aiProvider,
-		googleApiKey,
-		openaiApiKey,
-		anthropicApiKey,
-		repoScanMaxDepth,
-		repoScanRoot,
-	} satisfies AppConfig;
-});
-
-// Live implementation - loads config synchronously for simplicity
+// Live implementation - loads config from environment
 export const ConfigServiceLive = Layer.succeed(
 	ConfigService,
 	ConfigService.of({

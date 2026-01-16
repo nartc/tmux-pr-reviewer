@@ -1,3 +1,4 @@
+import { IconButton, Text, TextArea } from '@radix-ui/themes';
 import { useState } from 'react';
 import {
 	VscCheck,
@@ -69,46 +70,46 @@ export function CommentCard({
 			{/* Header */}
 			<div className="flex items-center justify-between mb-2">
 				<div className="text-xs text-gray-500 truncate flex-1">
-					<span className="font-medium text-gray-700 dark:text-gray-300">
+					<Text size="1" weight="medium">
 						{fileName}
-					</span>
+					</Text>
 					{lineInfo && (
-						<span className="ml-1 text-blue-500">{lineInfo}</span>
+						<Text size="1" color="blue" className="ml-1">
+							{lineInfo}
+						</Text>
 					)}
 				</div>
 				<div className="flex items-center gap-1 shrink-0">
 					{showSendButton && onSendNow && (
-						<button
+						<IconButton
+							size="1"
+							variant="ghost"
 							onClick={() => onSendNow(comment)}
-							className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
 							aria-label="Send now"
 						>
-							<VscSend className="w-4 h-4" aria-hidden="true" />
-						</button>
+							<VscSend aria-hidden="true" />
+						</IconButton>
 					)}
 					{!isEditing && (
 						<>
-							<button
+							<IconButton
+								size="1"
+								variant="ghost"
 								onClick={() => setIsEditing(true)}
-								className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
 								aria-label="Edit comment"
 							>
-								<VscEdit
-									className="w-4 h-4"
-									aria-hidden="true"
-								/>
-							</button>
-							<button
+								<VscEdit aria-hidden="true" />
+							</IconButton>
+							<IconButton
+								size="1"
+								variant="ghost"
+								color="red"
 								onClick={handleDelete}
-								className="p-1 text-gray-400 hover:text-red-500 transition-colors"
 								aria-label="Delete comment"
 								disabled={isDeleting}
 							>
-								<VscTrash
-									className="w-4 h-4"
-									aria-hidden="true"
-								/>
-							</button>
+								<VscTrash aria-hidden="true" />
+							</IconButton>
 						</>
 					)}
 				</div>
@@ -117,41 +118,44 @@ export function CommentCard({
 			{/* Content */}
 			{isEditing ? (
 				<div className="space-y-2">
-					<textarea
+					<TextArea
 						value={editContent}
 						onChange={(e) => setEditContent(e.target.value)}
-						className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+						size="1"
 						rows={3}
 						autoFocus
 						aria-label="Edit comment text"
 					/>
-					<div className="flex justify-end gap-2">
-						<button
+					<div className="flex justify-end gap-1">
+						<IconButton
+							size="1"
+							variant="ghost"
 							onClick={handleCancel}
-							className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 							aria-label="Cancel editing"
 						>
-							<VscClose className="w-4 h-4" aria-hidden="true" />
-						</button>
-						<button
+							<VscClose aria-hidden="true" />
+						</IconButton>
+						<IconButton
+							size="1"
+							variant="ghost"
+							color="green"
 							onClick={handleSave}
-							className="p-1 text-gray-400 hover:text-green-500"
 							aria-label="Save changes"
 							disabled={isUpdating}
 						>
-							<VscCheck className="w-4 h-4" aria-hidden="true" />
-						</button>
+							<VscCheck aria-hidden="true" />
+						</IconButton>
 					</div>
 				</div>
 			) : (
 				<>
-					<p className="text-sm whitespace-pre-wrap">
+					<Text size="2" className="whitespace-pre-wrap">
 						{comment.content}
-					</p>
+					</Text>
 					{showSentAt && comment.sent_at && (
-						<p className="text-xs text-gray-400 mt-2">
+						<Text size="1" color="gray" className="mt-2 block">
 							Sent {new Date(comment.sent_at).toLocaleString()}
-						</p>
+						</Text>
 					)}
 				</>
 			)}

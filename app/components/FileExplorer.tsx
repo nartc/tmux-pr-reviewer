@@ -1,3 +1,4 @@
+import { Text } from '@radix-ui/themes';
 import { useMemo, useState } from 'react';
 import {
 	VscChevronDown,
@@ -51,7 +52,6 @@ const statusColors = {
 	renamed: 'text-blue-500',
 };
 
-// Get file icon based on extension
 function getFileIcon(fileName: string) {
 	const ext = fileName.split('.').pop()?.toLowerCase();
 	switch (ext) {
@@ -74,7 +74,6 @@ function getFileIcon(fileName: string) {
 	}
 }
 
-// Build folder tree from flat file list
 function buildFolderTree(files: DiffFile[]): FolderNode {
 	const root: FolderNode = {
 		name: '',
@@ -89,7 +88,6 @@ function buildFolderTree(files: DiffFile[]): FolderNode {
 		const parts = file.path.split('/');
 		let current = root;
 
-		// Navigate/create folder structure
 		for (let i = 0; i < parts.length - 1; i++) {
 			const folderName = parts[i];
 			const folderPath = parts.slice(0, i + 1).join('/');
@@ -107,11 +105,9 @@ function buildFolderTree(files: DiffFile[]): FolderNode {
 			current = current.children.get(folderName)!;
 		}
 
-		// Add file to current folder
 		current.files.push(file);
 	}
 
-	// Calculate totals recursively
 	function calculateTotals(node: FolderNode): {
 		additions: number;
 		deletions: number;
@@ -151,7 +147,6 @@ export function FileExplorer({
 
 	const folderTree = useMemo(() => buildFolderTree(files), [files]);
 
-	// Expand all folders by default
 	useMemo(() => {
 		const allFolders = new Set<string>(['']);
 		function collectFolders(node: FolderNode) {
@@ -196,7 +191,6 @@ export function FileExplorer({
 
 		return (
 			<div key={node.path || 'root'}>
-				{/* Folder header (skip for root) */}
 				{depth > 0 && (
 					<button
 						onClick={() => toggleFolder(node.path)}
@@ -227,33 +221,34 @@ export function FileExplorer({
 								aria-hidden="true"
 							/>
 						)}
-						<span className="text-sm font-medium truncate flex-1">
+						<Text
+							size="2"
+							weight="medium"
+							className="truncate flex-1"
+						>
 							{node.name}
-						</span>
-						<div className="flex items-center gap-1 text-xs shrink-0">
+						</Text>
+						<div className="flex items-center gap-1 shrink-0">
 							{node.totalAdditions > 0 && (
-								<span className="text-green-500">
+								<Text size="1" color="green">
 									+{node.totalAdditions}
-								</span>
+								</Text>
 							)}
 							{node.totalDeletions > 0 && (
-								<span className="text-red-500">
+								<Text size="1" color="red">
 									-{node.totalDeletions}
-								</span>
+								</Text>
 							)}
 						</div>
 					</button>
 				)}
 
-				{/* Folder contents */}
 				{(isExpanded || depth === 0) && (
 					<>
-						{/* Subfolders */}
 						{sortedChildren.map((child) =>
 							renderFolder(child, depth + 1),
 						)}
 
-						{/* Files */}
 						{sortedFiles.map((file) => {
 							const fileName =
 								file.path.split('/').pop() || file.path;
@@ -284,19 +279,19 @@ export function FileExplorer({
 										className="w-4 h-4 text-gray-400 shrink-0"
 										aria-hidden="true"
 									/>
-									<span className="text-sm truncate flex-1">
+									<Text size="2" className="truncate flex-1">
 										{fileName}
-									</span>
-									<div className="flex items-center gap-1 text-xs shrink-0">
+									</Text>
+									<div className="flex items-center gap-1 shrink-0">
 										{file.additions > 0 && (
-											<span className="text-green-500">
+											<Text size="1" color="green">
 												+{file.additions}
-											</span>
+											</Text>
 										)}
 										{file.deletions > 0 && (
-											<span className="text-red-500">
+											<Text size="1" color="red">
 												-{file.deletions}
-											</span>
+											</Text>
 										)}
 									</div>
 								</button>
@@ -310,18 +305,25 @@ export function FileExplorer({
 
 	return (
 		<div className="py-2">
-			<div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
-				<span>Changed Files ({files.length})</span>
-				<div className="flex items-center gap-1 normal-case font-normal">
+			<div className="px-4 py-2 flex items-center justify-between">
+				<Text
+					size="1"
+					weight="bold"
+					color="gray"
+					className="uppercase tracking-wider"
+				>
+					Changed Files ({files.length})
+				</Text>
+				<div className="flex items-center gap-1">
 					{folderTree.totalAdditions > 0 && (
-						<span className="text-green-500">
+						<Text size="1" color="green">
 							+{folderTree.totalAdditions}
-						</span>
+						</Text>
 					)}
 					{folderTree.totalDeletions > 0 && (
-						<span className="text-red-500">
+						<Text size="1" color="red">
 							-{folderTree.totalDeletions}
-						</span>
+						</Text>
 					)}
 				</div>
 			</div>

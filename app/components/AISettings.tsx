@@ -1,4 +1,12 @@
-import * as Dialog from '@radix-ui/react-dialog';
+import {
+	Button,
+	Dialog,
+	IconButton,
+	SegmentedControl,
+	Select,
+	Spinner,
+	Text,
+} from '@radix-ui/themes';
 import { useEffect, useState } from 'react';
 import { VscCheck, VscSettings } from 'react-icons/vsc';
 import { useAsyncAction } from '../lib/use-async-action';
@@ -48,7 +56,6 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 				setSelectedProvider(data.currentSettings.provider);
 				setSelectedModel(data.currentSettings.model);
 			} else if (data.availableProviders.length > 0) {
-				// Default to first available provider
 				const defaultProvider = data.availableProviders[0];
 				setSelectedProvider(defaultProvider);
 				setSelectedModel(
@@ -63,7 +70,6 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 
 	const handleSave = () => {
 		if (!selectedProvider || !selectedModel) return;
-
 		submit(
 			{
 				intent: 'saveSettings',
@@ -74,142 +80,118 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 		);
 	};
 
-	const handleProviderChange = (provider: AIProvider) => {
-		setSelectedProvider(provider);
-		// Select first model for the new provider
+	const handleProviderChange = (provider: string) => {
+		setSelectedProvider(provider as AIProvider);
 		setSelectedModel(providerModels[provider]?.[0] || null);
 	};
 
 	return (
 		<Dialog.Root open={open} onOpenChange={setOpen}>
-			<Dialog.Trigger asChild>
-				<button
-					className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-					aria-label="AI Settings"
-				>
-					<VscSettings className="w-4 h-4" aria-hidden="true" />
-				</button>
+			<Dialog.Trigger>
+				<IconButton variant="ghost" aria-label="AI Settings">
+					<VscSettings aria-hidden="true" />
+				</IconButton>
 			</Dialog.Trigger>
 
-			<Dialog.Portal>
-				<Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
-				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-gray-900 rounded-lg shadow-xl z-50 p-6">
-					<Dialog.Title className="text-lg font-semibold mb-4">
-						AI Settings
-					</Dialog.Title>
+			<Dialog.Content maxWidth="400px">
+				<Dialog.Title>AI Settings</Dialog.Title>
 
-					{loading ? (
-						<div className="text-sm text-gray-500 py-4">
-							Loading...
+				{loading ? (
+					<div className="flex items-center justify-center py-8">
+						<Spinner size="3" />
+					</div>
+				) : availableProviders.length === 0 ? (
+					<div className="py-4">
+						<Text size="2" color="gray">
+							No AI providers configured. Set one of these
+							environment variables:
+						</Text>
+						<ul className="list-disc list-inside mt-2 space-y-1 text-sm text-gray-500">
+							<li>GOOGLE_API_KEY</li>
+							<li>OPENAI_API_KEY</li>
+							<li>ANTHROPIC_API_KEY</li>
+						</ul>
+					</div>
+				) : (
+					<div className="space-y-4 mt-4">
+						{/* Provider selection */}
+						<div>
+							<Text
+								size="2"
+								weight="medium"
+								className="mb-2 block"
+							>
+								Provider
+							</Text>
+							<SegmentedControl.Root
+								value={selectedProvider || ''}
+								onValueChange={handleProviderChange}
+							>
+								{availableProviders.map((provider) => (
+									<SegmentedControl.Item
+										key={provider}
+										value={provider}
+									>
+										{provider}
+									</SegmentedControl.Item>
+								))}
+							</SegmentedControl.Root>
 						</div>
-					) : availableProviders.length === 0 ? (
-						<div className="text-sm text-gray-500 py-4">
-							<p className="mb-2">No AI providers configured.</p>
-							<p>Set one of these environment variables:</p>
-							<ul className="list-disc list-inside mt-2 space-y-1">
-								<li>GOOGLE_API_KEY</li>
-								<li>OPENAI_API_KEY</li>
-								<li>ANTHROPIC_API_KEY</li>
-							</ul>
-						</div>
-					) : (
-						<div className="space-y-4">
-							{/* Provider selection */}
-							<div>
-								<label
-									id="provider-label"
-									className="block text-sm font-medium mb-2"
-								>
-									Provider
-								</label>
-								<div
-									role="radiogroup"
-									aria-labelledby="provider-label"
-									className="flex flex-wrap gap-2"
-								>
-									{availableProviders.map((provider) => (
-										<button
-											key={provider}
-											onClick={() =>
-												handleProviderChange(provider)
-											}
-											role="radio"
-											aria-checked={
-												selectedProvider === provider
-											}
-											className={`px-3 py-1.5 text-sm rounded border transition-colors ${
-												selectedProvider === provider
-													? 'bg-blue-500 text-white border-blue-500'
-													: 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-											}`}
-										>
-											{provider}
-										</button>
-									))}
-								</div>
-							</div>
 
-							{/* Model selection */}
-							{selectedProvider &&
-								providerModels[selectedProvider] && (
-									<div>
-										<label
-											htmlFor="model-select"
-											className="block text-sm font-medium mb-2"
-										>
-											Model
-										</label>
-										<select
-											id="model-select"
-											value={selectedModel || ''}
-											onChange={(e) =>
-												setSelectedModel(e.target.value)
-											}
-											className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-										>
+						{/* Model selection */}
+						{selectedProvider &&
+							providerModels[selectedProvider] && (
+								<div>
+									<Text
+										size="2"
+										weight="medium"
+										className="mb-2 block"
+									>
+										Model
+									</Text>
+									<Select.Root
+										value={selectedModel || ''}
+										onValueChange={setSelectedModel}
+									>
+										<Select.Trigger className="w-full" />
+										<Select.Content>
 											{providerModels[
 												selectedProvider
 											].map((model) => (
-												<option
+												<Select.Item
 													key={model}
 													value={model}
 												>
 													{model}
-												</option>
+												</Select.Item>
 											))}
-										</select>
-									</div>
-								)}
-						</div>
-					)}
-
-					{/* Actions */}
-					<div className="flex justify-end gap-2 mt-6">
-						<Dialog.Close asChild>
-							<button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-								Cancel
-							</button>
-						</Dialog.Close>
-						{availableProviders.length > 0 && (
-							<button
-								onClick={handleSave}
-								disabled={
-									!selectedProvider ||
-									!selectedModel ||
-									saving
-								}
-								className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-							>
-								<VscCheck
-									className="w-4 h-4"
-									aria-hidden="true"
-								/>
-								{saving ? 'Saving...' : 'Save'}
-							</button>
-						)}
+										</Select.Content>
+									</Select.Root>
+								</div>
+							)}
 					</div>
-				</Dialog.Content>
-			</Dialog.Portal>
+				)}
+
+				{/* Actions */}
+				<div className="flex justify-end gap-2 mt-6">
+					<Dialog.Close>
+						<Button variant="soft" color="gray">
+							Cancel
+						</Button>
+					</Dialog.Close>
+					{availableProviders.length > 0 && (
+						<Button
+							onClick={handleSave}
+							disabled={
+								!selectedProvider || !selectedModel || saving
+							}
+						>
+							<VscCheck aria-hidden="true" />
+							{saving ? 'Saving...' : 'Save'}
+						</Button>
+					)}
+				</div>
+			</Dialog.Content>
 		</Dialog.Root>
 	);
 }

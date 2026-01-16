@@ -1,3 +1,4 @@
+import { Button, Heading, Text } from '@radix-ui/themes';
 import type { ReactNode } from 'react';
 import {
 	VscComment,
@@ -18,13 +19,13 @@ function EmptyState({ icon, title, description, action }: EmptyStateProps) {
 	return (
 		<div className="flex flex-col items-center justify-center py-12 px-4 text-center">
 			<div className="text-gray-300 dark:text-gray-600 mb-4">{icon}</div>
-			<h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
+			<Heading size="4" className="mb-1">
 				{title}
-			</h3>
+			</Heading>
 			{description && (
-				<p className="text-sm text-gray-500 max-w-sm mb-4">
+				<Text size="2" color="gray" className="max-w-sm mb-4">
 					{description}
-				</p>
+				</Text>
 			)}
 			{action}
 		</div>
@@ -38,14 +39,7 @@ export function EmptyRepos({ onAddRepo }: { onAddRepo?: () => void }) {
 			title="No repositories"
 			description="Add a repository to start reviewing code changes."
 			action={
-				onAddRepo && (
-					<button
-						onClick={onAddRepo}
-						className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-					>
-						Add Repository
-					</button>
-				)
+				onAddRepo && <Button onClick={onAddRepo}>Add Repository</Button>
 			}
 		/>
 	);
@@ -63,18 +57,22 @@ export function EmptyComments() {
 
 export function EmptyQueuedComments() {
 	return (
-		<div className="text-center py-6 text-gray-500">
-			<VscComment className="w-8 h-8 mx-auto mb-2 opacity-50" />
-			<p className="text-sm">No queued comments</p>
+		<div className="text-center py-6">
+			<VscComment className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+			<Text size="2" color="gray">
+				No queued comments
+			</Text>
 		</div>
 	);
 }
 
 export function EmptyStagedComments() {
 	return (
-		<div className="text-center py-6 text-gray-500">
-			<VscComment className="w-8 h-8 mx-auto mb-2 opacity-50" />
-			<p className="text-sm">No staged comments</p>
+		<div className="text-center py-6">
+			<VscComment className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+			<Text size="2" color="gray">
+				No staged comments
+			</Text>
 		</div>
 	);
 }

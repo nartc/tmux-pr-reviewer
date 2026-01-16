@@ -35,6 +35,13 @@
 	--density-gap-lg: 1rem;
 	--density-icon-sm: 1rem;
 	--density-icon-md: 1.25rem;
+
+	/* @pierre/diffs styling - inherited by Shadow DOM */
+	--diffs-font-family: var(--font-mono);
+	--diffs-header-font-family: var(--font-sans);
+	--diffs-font-size: 13px;
+	--diffs-line-height: 1.5;
+	--diffs-tab-size: 2;
 }
 
 body.compact {
@@ -53,13 +60,15 @@ body.compact {
 
 html,
 body {
-	@apply bg-white dark:bg-gray-950;
+	@apply bg-white text-gray-900;
 	font-size: var(--density-font-size);
 	line-height: var(--density-line-height);
+}
 
-	@media (prefers-color-scheme: dark) {
-		color-scheme: dark;
-	}
+html.dark,
+html.dark body {
+	@apply bg-gray-950 text-gray-100;
+	color-scheme: dark;
 }
 
 /* Transitions - more selective */
