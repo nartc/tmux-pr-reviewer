@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { VscClose } from 'react-icons/vsc';
-import { useFetcher } from 'react-router';
+import { useAsyncAction } from '../lib/use-async-action';
 
 interface InlineCommentFormProps {
 	sessionId: string;
@@ -22,9 +22,13 @@ export function InlineCommentForm({
 	onSendNow,
 }: InlineCommentFormProps) {
 	const [content, setContent] = useState('');
-	const fetcher = useFetcher();
-
-	const isSubmitting = fetcher.state !== 'idle';
+	const { submit, isPending } = useAsyncAction({
+		successMessage: 'Comment queued',
+		onSuccess: () => {
+			setContent('');
+			onClose();
+		},
+	});
 
 	const handleQueue = () => {
 		if (!content.trim()) return;
@@ -38,9 +42,7 @@ export function InlineCommentForm({
 		if (lineEnd) formData.append('lineEnd', lineEnd.toString());
 		if (side) formData.append('side', side);
 
-		fetcher.submit(formData, { method: 'POST', action: '/api/comments' });
-		setContent('');
-		onClose();
+		submit(formData, { method: 'POST', action: '/api/comments' });
 	};
 
 	const handleSendNow = () => {
@@ -72,8 +74,7 @@ export function InlineCommentForm({
 	return (
 		<div
 			data-comment-form
-			className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 m-2 box-border"
-			style={{ width: 'calc(100% - 16px)' }}
+			className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 m-2 box-border w-[calc(100%-1rem)]"
 		>
 			{/* Header */}
 			<div className="flex items-center justify-between mb-2">
@@ -81,8 +82,9 @@ export function InlineCommentForm({
 				<button
 					onClick={onClose}
 					className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+					aria-label="Close comment form"
 				>
-					<VscClose className="w-4 h-4" />
+					<VscClose className="w-4 h-4" aria-hidden="true" />
 				</button>
 			</div>
 
@@ -95,6 +97,7 @@ export function InlineCommentForm({
 				className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
 				rows={3}
 				autoFocus
+				aria-label="Comment text"
 			/>
 
 			{/* Actions */}
@@ -111,7 +114,7 @@ export function InlineCommentForm({
 				{onSendNow && (
 					<button
 						onClick={handleSendNow}
-						disabled={!content.trim() || isSubmitting}
+						disabled={!content.trim() || isPending}
 						className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
 					>
 						Send Now
@@ -122,7 +125,7 @@ export function InlineCommentForm({
 				)}
 				<button
 					onClick={handleQueue}
-					disabled={!content.trim() || isSubmitting}
+					disabled={!content.trim() || isPending}
 					className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
 				>
 					Queue

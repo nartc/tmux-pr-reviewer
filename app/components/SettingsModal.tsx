@@ -15,7 +15,7 @@ export function SettingsModal({
 	onDiffStyleChange,
 }: SettingsModalProps) {
 	const [open, setOpen] = useState(false);
-	const { theme, setTheme } = useTheme();
+	const { theme, setTheme, density, setDensity } = useTheme();
 	const [localDiffStyle, setLocalDiffStyle] = useState(diffStyle);
 
 	useEffect(() => {
@@ -32,9 +32,9 @@ export function SettingsModal({
 			<Dialog.Trigger asChild>
 				<button
 					className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-					title="Settings"
+					aria-label="Settings"
 				>
-					<VscSettingsGear className="w-5 h-5" />
+					<VscSettingsGear className="w-5 h-5" aria-hidden="true" />
 				</button>
 			</Dialog.Trigger>
 
@@ -48,15 +48,24 @@ export function SettingsModal({
 					<div className="space-y-6">
 						{/* Theme */}
 						<div>
-							<label className="block text-sm font-medium mb-3">
+							<label
+								id="theme-label"
+								className="block text-sm font-medium mb-3"
+							>
 								Theme
 							</label>
-							<div className="flex gap-2">
+							<div
+								role="radiogroup"
+								aria-labelledby="theme-label"
+								className="flex gap-2"
+							>
 								{(['light', 'dark', 'system'] as const).map(
 									(t) => (
 										<button
 											key={t}
 											onClick={() => setTheme(t)}
+											role="radio"
+											aria-checked={theme === t}
 											className={`flex-1 px-3 py-2 text-sm rounded border transition-colors capitalize ${
 												theme === t
 													? 'bg-blue-500 text-white border-blue-500'
@@ -72,12 +81,21 @@ export function SettingsModal({
 
 						{/* Diff Style */}
 						<div>
-							<label className="block text-sm font-medium mb-3">
+							<label
+								id="diff-style-label"
+								className="block text-sm font-medium mb-3"
+							>
 								Diff View
 							</label>
-							<div className="flex gap-2">
+							<div
+								role="radiogroup"
+								aria-labelledby="diff-style-label"
+								className="flex gap-2"
+							>
 								<button
 									onClick={() => setLocalDiffStyle('split')}
+									role="radio"
+									aria-checked={localDiffStyle === 'split'}
 									className={`flex-1 px-3 py-2 text-sm rounded border transition-colors ${
 										localDiffStyle === 'split'
 											? 'bg-blue-500 text-white border-blue-500'
@@ -88,6 +106,8 @@ export function SettingsModal({
 								</button>
 								<button
 									onClick={() => setLocalDiffStyle('unified')}
+									role="radio"
+									aria-checked={localDiffStyle === 'unified'}
 									className={`flex-1 px-3 py-2 text-sm rounded border transition-colors ${
 										localDiffStyle === 'unified'
 											? 'bg-blue-500 text-white border-blue-500'
@@ -96,6 +116,37 @@ export function SettingsModal({
 								>
 									Unified View
 								</button>
+							</div>
+						</div>
+
+						{/* Density */}
+						<div>
+							<label
+								id="density-label"
+								className="block text-sm font-medium mb-3"
+							>
+								UI Density
+							</label>
+							<div
+								role="radiogroup"
+								aria-labelledby="density-label"
+								className="flex gap-2"
+							>
+								{(['normal', 'compact'] as const).map((d) => (
+									<button
+										key={d}
+										onClick={() => setDensity(d)}
+										role="radio"
+										aria-checked={density === d}
+										className={`flex-1 px-3 py-2 text-sm rounded border transition-colors capitalize ${
+											density === d
+												? 'bg-blue-500 text-white border-blue-500'
+												: 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
+										}`}
+									>
+										{d}
+									</button>
+								))}
 							</div>
 						</div>
 
@@ -143,7 +194,7 @@ export function SettingsModal({
 							onClick={handleSave}
 							className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
 						>
-							<VscCheck className="w-4 h-4" />
+							<VscCheck className="w-4 h-4" aria-hidden="true" />
 							Save
 						</button>
 					</div>

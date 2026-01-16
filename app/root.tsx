@@ -7,8 +7,10 @@ import {
 	ScrollRestoration,
 } from 'react-router';
 
+import { Toaster } from 'sonner';
 import type { Route } from './+types/root';
 import './app.css';
+import { AsyncStateProvider } from './lib/async-state.js';
 import { ThemeProvider } from './lib/theme.js';
 
 export const links: Route.LinksFunction = () => [
@@ -20,7 +22,7 @@ export const links: Route.LinksFunction = () => [
 	},
 	{
 		rel: 'stylesheet',
-		href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap',
+		href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap',
 	},
 ];
 
@@ -48,7 +50,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
 	return (
 		<ThemeProvider>
-			<Outlet />
+			<AsyncStateProvider>
+				<Outlet />
+				<Toaster
+					position="bottom-right"
+					toastOptions={{
+						classNames: {
+							toast: 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700',
+							title: 'text-gray-900 dark:text-gray-100',
+							description: 'text-gray-500 dark:text-gray-400',
+						},
+					}}
+				/>
+			</AsyncStateProvider>
 		</ThemeProvider>
 	);
 }

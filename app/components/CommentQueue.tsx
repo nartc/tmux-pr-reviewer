@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { VscChevronDown, VscChevronRight, VscSend } from 'react-icons/vsc';
-import { useFetcher } from 'react-router';
+import { useAsyncAction } from '../lib/use-async-action';
 import type { Comment } from '../services/comment.service';
 import { CommentCard } from './CommentCard';
 import { SessionSelector } from './SessionSelector';
@@ -32,7 +32,11 @@ export function CommentQueue({
 	const [queueExpanded, setQueueExpanded] = useState(true);
 	const [stagedExpanded, setStagedExpanded] = useState(true);
 	const [sentExpanded, setSentExpanded] = useState(true);
-	const fetcher = useFetcher();
+
+	const { submit, isPending: isStaging } = useAsyncAction({
+		successMessage: 'Comments staged',
+		onSuccess: () => setSelectedIds(new Set()),
+	});
 
 	const toggleSelect = (id: string) => {
 		const newSelected = new Set(selectedIds);
@@ -59,16 +63,13 @@ export function CommentQueue({
 		formData.append('intent', 'stage');
 		selectedIds.forEach((id) => formData.append('ids', id));
 
-		fetcher.submit(formData, { method: 'POST', action: '/api/comments' });
-		setSelectedIds(new Set());
+		submit(formData, { method: 'POST', action: '/api/comments' });
 	};
 
 	const handleStageRaw = () => {
 		// Stage without AI processing - just move to staged
 		handleStageSelected();
 	};
-
-	const isStaging = fetcher.state !== 'idle';
 
 	return (
 		<div className="h-full flex flex-col">
@@ -89,12 +90,20 @@ export function CommentQueue({
 				<button
 					onClick={() => setQueueExpanded(!queueExpanded)}
 					className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800"
+					aria-expanded={queueExpanded}
+					aria-controls="queued-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{queueExpanded ? (
-							<VscChevronDown className="w-4 h-4" />
+							<VscChevronDown
+								className="w-4 h-4"
+								aria-hidden="true"
+							/>
 						) : (
-							<VscChevronRight className="w-4 h-4" />
+							<VscChevronRight
+								className="w-4 h-4"
+								aria-hidden="true"
+							/>
 						)}
 						<span className="font-semibold text-sm">Queued</span>
 						<span className="text-xs text-gray-500">
@@ -104,7 +113,7 @@ export function CommentQueue({
 				</button>
 
 				{queueExpanded && (
-					<div className="px-4 pb-4">
+					<div id="queued-comments-section" className="px-4 pb-4">
 						{queuedComments.length === 0 ? (
 							<p className="text-sm text-gray-500 py-2">
 								No queued comments
@@ -149,6 +158,10 @@ export function CommentQueue({
 											key={comment.id}
 											className="flex items-start gap-2"
 										>
+											<label className="sr-only">
+												Select comment for{' '}
+												{comment.file_path}
+											</label>
 											<input
 												type="checkbox"
 												checked={selectedIds.has(
@@ -158,6 +171,7 @@ export function CommentQueue({
 													toggleSelect(comment.id)
 												}
 												className="mt-3 shrink-0"
+												aria-label={`Select comment for ${comment.file_path}`}
 											/>
 											<div className="flex-1 min-w-0">
 												<CommentCard
@@ -182,12 +196,20 @@ export function CommentQueue({
 				<button
 					onClick={() => setStagedExpanded(!stagedExpanded)}
 					className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800"
+					aria-expanded={stagedExpanded}
+					aria-controls="staged-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{stagedExpanded ? (
-							<VscChevronDown className="w-4 h-4" />
+							<VscChevronDown
+								className="w-4 h-4"
+								aria-hidden="true"
+							/>
 						) : (
-							<VscChevronRight className="w-4 h-4" />
+							<VscChevronRight
+								className="w-4 h-4"
+								aria-hidden="true"
+							/>
 						)}
 						<span className="font-semibold text-sm">Staged</span>
 						<span className="text-xs text-gray-500">
@@ -197,7 +219,7 @@ export function CommentQueue({
 				</button>
 
 				{stagedExpanded && (
-					<div className="px-4 pb-4">
+					<div id="staged-comments-section" className="px-4 pb-4">
 						{stagedComments.length === 0 ? (
 							<p className="text-sm text-gray-500 py-2">
 								No staged comments
@@ -211,7 +233,10 @@ export function CommentQueue({
 										disabled={!selectedTmuxSession}
 										className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 									>
-										<VscSend className="w-4 h-4" />
+										<VscSend
+											className="w-4 h-4"
+											aria-hidden="true"
+										/>
 										Send All Staged ({stagedComments.length}
 										)
 									</button>
@@ -242,12 +267,20 @@ export function CommentQueue({
 				<button
 					onClick={() => setSentExpanded(!sentExpanded)}
 					className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800"
+					aria-expanded={sentExpanded}
+					aria-controls="sent-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{sentExpanded ? (
-							<VscChevronDown className="w-4 h-4" />
+							<VscChevronDown
+								className="w-4 h-4"
+								aria-hidden="true"
+							/>
 						) : (
-							<VscChevronRight className="w-4 h-4" />
+							<VscChevronRight
+								className="w-4 h-4"
+								aria-hidden="true"
+							/>
 						)}
 						<span className="font-semibold text-sm">Sent</span>
 						<span className="text-xs text-gray-500">
@@ -257,7 +290,7 @@ export function CommentQueue({
 				</button>
 
 				{sentExpanded && (
-					<div className="px-4 pb-4">
+					<div id="sent-comments-section" className="px-4 pb-4">
 						{sentComments.length === 0 ? (
 							<p className="text-sm text-gray-500 py-2">
 								No sent comments

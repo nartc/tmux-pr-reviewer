@@ -6,7 +6,7 @@ import {
 	VscSend,
 	VscTrash,
 } from 'react-icons/vsc';
-import { useFetcher } from 'react-router';
+import { useAsyncAction } from '../lib/use-async-action';
 import type { Comment } from '../services/comment.service';
 
 interface CommentCardProps {
@@ -24,25 +24,25 @@ export function CommentCard({
 }: CommentCardProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [editContent, setEditContent] = useState(comment.content);
-	const fetcher = useFetcher();
 
-	const isDeleting =
-		fetcher.state !== 'idle' &&
-		fetcher.formData?.get('intent') === 'delete';
-	const isUpdating =
-		fetcher.state !== 'idle' &&
-		fetcher.formData?.get('intent') === 'update';
+	const { submit: submitUpdate, isPending: isUpdating } = useAsyncAction({
+		successMessage: 'Comment updated',
+		onSuccess: () => setIsEditing(false),
+	});
+
+	const { submit: submitDelete, isPending: isDeleting } = useAsyncAction({
+		successMessage: 'Comment deleted',
+	});
 
 	const handleSave = () => {
-		fetcher.submit(
+		submitUpdate(
 			{ intent: 'update', id: comment.id, content: editContent },
 			{ method: 'POST', action: '/api/comments' },
 		);
-		setIsEditing(false);
 	};
 
 	const handleDelete = () => {
-		fetcher.submit(
+		submitDelete(
 			{ intent: 'delete', id: comment.id },
 			{ method: 'POST', action: '/api/comments' },
 		);
@@ -81,9 +81,9 @@ export function CommentCard({
 						<button
 							onClick={() => onSendNow(comment)}
 							className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-							title="Send now"
+							aria-label="Send now"
 						>
-							<VscSend className="w-4 h-4" />
+							<VscSend className="w-4 h-4" aria-hidden="true" />
 						</button>
 					)}
 					{!isEditing && (
@@ -91,17 +91,23 @@ export function CommentCard({
 							<button
 								onClick={() => setIsEditing(true)}
 								className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-								title="Edit"
+								aria-label="Edit comment"
 							>
-								<VscEdit className="w-4 h-4" />
+								<VscEdit
+									className="w-4 h-4"
+									aria-hidden="true"
+								/>
 							</button>
 							<button
 								onClick={handleDelete}
 								className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-								title="Delete"
+								aria-label="Delete comment"
 								disabled={isDeleting}
 							>
-								<VscTrash className="w-4 h-4" />
+								<VscTrash
+									className="w-4 h-4"
+									aria-hidden="true"
+								/>
 							</button>
 						</>
 					)}
@@ -117,22 +123,23 @@ export function CommentCard({
 						className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
 						rows={3}
 						autoFocus
+						aria-label="Edit comment text"
 					/>
 					<div className="flex justify-end gap-2">
 						<button
 							onClick={handleCancel}
 							className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-							title="Cancel"
+							aria-label="Cancel editing"
 						>
-							<VscClose className="w-4 h-4" />
+							<VscClose className="w-4 h-4" aria-hidden="true" />
 						</button>
 						<button
 							onClick={handleSave}
 							className="p-1 text-gray-400 hover:text-green-500"
-							title="Save"
+							aria-label="Save changes"
 							disabled={isUpdating}
 						>
-							<VscCheck className="w-4 h-4" />
+							<VscCheck className="w-4 h-4" aria-hidden="true" />
 						</button>
 					</div>
 				</div>

@@ -50,10 +50,14 @@ export function ProcessPreview({
 					<div className="flex-1 overflow-y-auto p-4 space-y-4">
 						{/* Processed output */}
 						<div>
-							<label className="block text-sm font-medium mb-2">
+							<label
+								htmlFor="processed-output"
+								className="block text-sm font-medium mb-2"
+							>
 								Processed Output (editable)
 							</label>
 							<textarea
+								id="processed-output"
 								value={editedText}
 								onChange={(e) => setEditedText(e.target.value)}
 								className="w-full h-48 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono"
@@ -65,16 +69,27 @@ export function ProcessPreview({
 							<button
 								onClick={() => setShowOriginal(!showOriginal)}
 								className="w-full px-3 py-2 flex items-center gap-2 text-sm text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+								aria-expanded={showOriginal}
+								aria-controls="original-comments-section"
 							>
 								{showOriginal ? (
-									<VscChevronDown className="w-4 h-4" />
+									<VscChevronDown
+										className="w-4 h-4"
+										aria-hidden="true"
+									/>
 								) : (
-									<VscChevronRight className="w-4 h-4" />
+									<VscChevronRight
+										className="w-4 h-4"
+										aria-hidden="true"
+									/>
 								)}
 								Original Comments ({originalComments.length})
 							</button>
 							{showOriginal && (
-								<div className="px-3 pb-3 space-y-2">
+								<div
+									id="original-comments-section"
+									className="px-3 pb-3 space-y-2"
+								>
 									{originalComments.map((comment) => (
 										<div
 											key={comment.id}
@@ -101,14 +116,14 @@ export function ProcessPreview({
 							onClick={handleCancel}
 							className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
 						>
-							<VscClose className="w-4 h-4" />
+							<VscClose className="w-4 h-4" aria-hidden="true" />
 							Cancel
 						</button>
 						<button
 							onClick={handleConfirm}
 							className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
 						>
-							<VscCheck className="w-4 h-4" />
+							<VscCheck className="w-4 h-4" aria-hidden="true" />
 							Stage Processed
 						</button>
 					</div>

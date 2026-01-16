@@ -1,7 +1,8 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { VscRefresh, VscTerminal, VscWarning } from 'react-icons/vsc';
-import type { TmuxSession } from '../services/tmux.service';
+import { useAsyncState } from '../lib/async-state';
+import type { TmuxSession, TmuxWindow } from '../services/tmux.service';
 
 interface SessionSelectorProps {
 	selectedSession: string | null;
@@ -20,9 +21,12 @@ export function SessionSelector({
 	>([]);
 	const [loading, setLoading] = useState(true);
 	const [available, setAvailable] = useState(true);
+	const { startOperation, endOperation } = useAsyncState();
+	const operationId = useId();
 
-	const fetchSessions = async () => {
+	const fetchSessions = useCallback(async () => {
 		setLoading(true);
+		startOperation(operationId);
 		try {
 			const res = await fetch('/api/sessions');
 			const data = await res.json();
@@ -31,35 +35,104 @@ export function SessionSelector({
 			let allSessions: TmuxSession[] = data.sessions || [];
 			let agentSessions: TmuxSession[] = data.codingAgentSessions || [];
 
-			// Filter sessions by repo path if provided
+			// Filter sessions by repo path if provided (check windows for path match)
+			// Also recalculate detectedProcess based only on matching windows
 			if (repoPath) {
-				const normalizedRepoPath = repoPath.replace(/\/$/, ''); // Remove trailing slash
-				allSessions = allSessions.filter(
-					(s) =>
-						s.workingDir.replace(/\/$/, '') ===
-							normalizedRepoPath ||
-						s.workingDir
-							.replace(/\/$/, '')
-							.startsWith(normalizedRepoPath + '/'),
-				);
-				agentSessions = agentSessions.filter(
-					(s) =>
-						s.workingDir.replace(/\/$/, '') ===
-							normalizedRepoPath ||
-						s.workingDir
-							.replace(/\/$/, '')
-							.startsWith(normalizedRepoPath + '/'),
+				const normalizedRepoPath = repoPath.replace(/\/$/, '');
+
+				const windowMatchesPath = (w: TmuxWindow) =>
+					w.paneCurrentPath.replace(/\/$/, '') ===
+						normalizedRepoPath ||
+					w.paneCurrentPath
+						.replace(/\/$/, '')
+						.startsWith(normalizedRepoPath + '/');
+
+				const filterAndRecalculate = (
+					sessions: TmuxSession[],
+				): TmuxSession[] =>
+					sessions
+						.map((s) => {
+							// Get windows that match the repo path
+							const matchingWindows =
+								s.windows?.filter(windowMatchesPath) || [];
+
+							// Check if session matches (via windows or working dir)
+							const sessionDirMatches =
+								s.workingDir.replace(/\/$/, '') ===
+									normalizedRepoPath ||
+								s.workingDir
+									.replace(/\/$/, '')
+									.startsWith(normalizedRepoPath + '/');
+
+							if (
+								matchingWindows.length === 0 &&
+								!sessionDirMatches
+							) {
+								return null; // Filter out this session
+							}
+
+							// Recalculate detectedProcess based only on matching windows
+							const agentWindowsInPath = matchingWindows.filter(
+								(w) => w.detectedAgent !== null,
+							);
+
+							// Sort by agent priority (claude first based on CODING_AGENTS order)
+							const CODING_AGENTS = [
+								'claude',
+								'opencode',
+								'aider',
+								'cursor',
+								'copilot',
+								'gemini',
+								'codex',
+							];
+							agentWindowsInPath.sort((a, b) => {
+								const aIdx = CODING_AGENTS.indexOf(
+									a.detectedAgent!,
+								);
+								const bIdx = CODING_AGENTS.indexOf(
+									b.detectedAgent!,
+								);
+								return aIdx - bIdx;
+							});
+
+							const detectedProcess =
+								agentWindowsInPath.length > 0
+									? agentWindowsInPath[0].detectedAgent
+									: null;
+							const multipleAgents =
+								agentWindowsInPath.length > 1;
+
+							return {
+								...s,
+								detectedProcess,
+								multipleAgents,
+							};
+						})
+						.filter((s): s is TmuxSession => s !== null);
+
+				allSessions = filterAndRecalculate(allSessions);
+				// Recalculate agent sessions from filtered allSessions
+				agentSessions = allSessions.filter(
+					(s) => s.detectedProcess !== null,
 				);
 			}
 
 			setSessions(allSessions);
 			setCodingAgentSessions(agentSessions);
 
-			// Auto-select first coding agent session if none selected, fallback to any session
+			// Auto-select first coding agent session if none selected
+			// Don't auto-select if there are multiple agents (user should choose)
 			if (!selectedSession) {
-				if (agentSessions.length > 0) {
+				const hasMultipleAgents = agentSessions.some(
+					(s) => s.multipleAgents,
+				);
+				if (agentSessions.length > 0 && !hasMultipleAgents) {
 					onSelectSession(agentSessions[0].name);
-				} else if (allSessions.length > 0) {
+				} else if (
+					allSessions.length > 0 &&
+					agentSessions.length === 0
+				) {
 					onSelectSession(allSessions[0].name);
 				}
 			}
@@ -68,14 +141,22 @@ export function SessionSelector({
 			setAvailable(false);
 		}
 		setLoading(false);
-	};
+		endOperation(operationId);
+	}, [
+		repoPath,
+		selectedSession,
+		onSelectSession,
+		operationId,
+		startOperation,
+		endOperation,
+	]);
 
 	useEffect(() => {
 		fetchSessions();
 		// Refresh every 30 seconds
 		const interval = setInterval(fetchSessions, 30000);
 		return () => clearInterval(interval);
-	}, [repoPath]);
+	}, [fetchSessions]);
 
 	const selectedSessionData = sessions.find(
 		(s) => s.name === selectedSession,
@@ -84,7 +165,7 @@ export function SessionSelector({
 	if (!available) {
 		return (
 			<div className="flex items-center gap-2 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 rounded">
-				<VscWarning className="w-4 h-4" />
+				<VscWarning className="w-4 h-4" aria-hidden="true" />
 				<span>tmux not available</span>
 			</div>
 		);
@@ -95,10 +176,17 @@ export function SessionSelector({
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger asChild>
 					<button
-						className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors min-w-[200px]"
+						className={`flex items-center gap-2 px-3 py-2 text-sm border rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors min-w-[200px] ${
+							selectedSessionData?.multipleAgents
+								? 'border-amber-500 ring-2 ring-amber-500/50'
+								: 'border-gray-300 dark:border-gray-600'
+						}`}
 						disabled={loading}
 					>
-						<VscTerminal className="w-4 h-4 text-gray-400" />
+						<VscTerminal
+							className="w-4 h-4 text-gray-400"
+							aria-hidden="true"
+						/>
 						<span className="flex-1 text-left truncate">
 							{loading
 								? 'Loading...'
@@ -106,11 +194,17 @@ export function SessionSelector({
 									? selectedSessionData.name
 									: 'Select session'}
 						</span>
-						{selectedSessionData?.detectedProcess && (
-							<span className="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">
-								{selectedSessionData.detectedProcess}
+						{selectedSessionData?.multipleAgents && (
+							<span className="text-xs px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
+								Multiple agents
 							</span>
 						)}
+						{selectedSessionData?.detectedProcess &&
+							!selectedSessionData?.multipleAgents && (
+								<span className="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">
+									{selectedSessionData.detectedProcess}
+								</span>
+							)}
 					</button>
 				</DropdownMenu.Trigger>
 
@@ -193,10 +287,11 @@ export function SessionSelector({
 				onClick={fetchSessions}
 				disabled={loading}
 				className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50"
-				title="Refresh sessions"
+				aria-label="Refresh sessions"
 			>
 				<VscRefresh
 					className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
+					aria-hidden="true"
 				/>
 			</button>
 		</div>

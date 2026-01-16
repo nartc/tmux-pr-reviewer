@@ -2,6 +2,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useState, type ReactNode } from 'react';
 import { VscChevronLeft, VscChevronRight, VscColorMode } from 'react-icons/vsc';
 import { useTheme } from '../lib/theme.js';
+import { GlobalLoadingBar } from './GlobalLoadingBar.js';
 
 interface LayoutProps {
 	children: ReactNode;
@@ -22,6 +23,7 @@ export function Layout({
 
 	return (
 		<div className="h-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+			<GlobalLoadingBar />
 			{/* Header */}
 			<header className="h-12 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
 				<div className="flex items-center gap-4">
@@ -34,11 +36,20 @@ export function Layout({
 				</div>
 			</header>
 
-			{/* Main content area */}
-			<div className="flex-1 flex overflow-hidden">
+			{/* Small screen message */}
+			<div className="flex md:hidden items-center justify-center flex-1 p-4 text-center text-gray-500">
+				<p>
+					Please use a larger screen (tablet or desktop) for the best
+					experience.
+				</p>
+			</div>
+
+			{/* Main content area - hidden on small screens */}
+			<div className="hidden md:flex flex-1 overflow-hidden">
 				{/* Left sidebar */}
 				{leftSidebar && (
 					<aside
+						aria-label="File explorer"
 						className={`border-r border-gray-200 dark:border-gray-800 shrink-0 flex flex-col transition-all duration-200 ${
 							leftCollapsed ? 'w-10' : 'w-64'
 						}`}
@@ -47,16 +58,23 @@ export function Layout({
 						<button
 							onClick={() => setLeftCollapsed(!leftCollapsed)}
 							className="h-8 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-800"
-							title={
+							aria-label={
 								leftCollapsed
-									? 'Expand files'
-									: 'Collapse files'
+									? 'Expand file explorer'
+									: 'Collapse file explorer'
 							}
+							aria-expanded={!leftCollapsed}
 						>
 							{leftCollapsed ? (
-								<VscChevronRight className="w-4 h-4" />
+								<VscChevronRight
+									className="w-4 h-4"
+									aria-hidden="true"
+								/>
 							) : (
-								<VscChevronLeft className="w-4 h-4" />
+								<VscChevronLeft
+									className="w-4 h-4"
+									aria-hidden="true"
+								/>
 							)}
 						</button>
 						{/* Sidebar content */}
@@ -73,7 +91,10 @@ export function Layout({
 
 				{/* Right sidebar */}
 				{rightSidebar && (
-					<aside className="w-80 border-l border-gray-200 dark:border-gray-800 overflow-y-auto shrink-0">
+					<aside
+						aria-label="Comment queue"
+						className="w-80 border-l border-gray-200 dark:border-gray-800 overflow-y-auto shrink-0"
+					>
 						{rightSidebar}
 					</aside>
 				)}
@@ -92,7 +113,7 @@ function ThemeToggle() {
 					className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
 					aria-label="Toggle theme"
 				>
-					<VscColorMode className="w-5 h-5" />
+					<VscColorMode className="w-5 h-5" aria-hidden="true" />
 				</button>
 			</DropdownMenu.Trigger>
 

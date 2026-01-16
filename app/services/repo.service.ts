@@ -1,6 +1,12 @@
-import { generateId } from '../lib/effect-runtime';
-import { getDatabase } from './db.service';
-import { createGitService } from './git.service';
+import { Context, Effect, Layer } from 'effect';
+import { generateId } from '../lib/effect-runtime.js';
+import {
+	DatabaseError,
+	RepoNotFoundError,
+	SessionNotFoundError,
+} from '../lib/errors.js';
+import { getDatabase } from './db.service.js';
+import { createGitService } from './git.service.js';
 
 // Types
 export interface Repo {
@@ -31,9 +37,475 @@ export interface RepoWithPath extends Repo {
 	paths: RepoPath[];
 }
 
-// Repo service - direct database access for use in loaders/actions
+// RepoService interface
+export interface RepoService {
+	readonly getAllRepos: Effect.Effect<RepoWithPath[], DatabaseError>;
+	readonly getRepoById: (
+		id: string,
+	) => Effect.Effect<Repo, RepoNotFoundError | DatabaseError>;
+	readonly getRepoByRemoteUrl: (
+		remoteUrl: string,
+	) => Effect.Effect<Repo | undefined, DatabaseError>;
+	readonly getRepoByPath: (
+		path: string,
+	) => Effect.Effect<Repo | undefined, DatabaseError>;
+	readonly createOrGetRepoFromPath: (
+		path: string,
+	) => Effect.Effect<
+		{ repo: Repo; repoPath: RepoPath; isNew: boolean },
+		DatabaseError
+	>;
+	readonly deleteRepo: (id: string) => Effect.Effect<void, DatabaseError>;
+	readonly deleteRepoPath: (
+		pathId: string,
+	) => Effect.Effect<void, DatabaseError>;
+	readonly updateBaseBranch: (
+		repoId: string,
+		baseBranch: string,
+	) => Effect.Effect<void, DatabaseError>;
+	readonly getOrCreateSession: (
+		repoId: string,
+		path: string,
+	) => Effect.Effect<ReviewSession, DatabaseError>;
+	readonly getSessionById: (
+		id: string,
+	) => Effect.Effect<ReviewSession, SessionNotFoundError | DatabaseError>;
+	readonly getSessionWithRepo: (
+		sessionId: string,
+	) => Effect.Effect<
+		{ session: ReviewSession; repo: RepoWithPath },
+		SessionNotFoundError | RepoNotFoundError | DatabaseError
+	>;
+	readonly getRepoPaths: (
+		repoId: string,
+	) => Effect.Effect<RepoPath[], DatabaseError>;
+	readonly updateSessionBaseBranch: (
+		sessionId: string,
+		baseBranch: string | null,
+	) => Effect.Effect<void, DatabaseError>;
+}
+
+export const RepoService = Context.GenericTag<RepoService>('RepoService');
+
+// Implementation
+const makeRepoService = (): RepoService => {
+	const runDbOperation = <T>(
+		operation: () => T,
+		errorMessage: string,
+	): Effect.Effect<T, DatabaseError> =>
+		Effect.try({
+			try: operation,
+			catch: (error) =>
+				new DatabaseError({
+					message: errorMessage,
+					cause: error,
+				}),
+		});
+
+	return {
+		getAllRepos: Effect.gen(function* () {
+			const db = getDatabase();
+			const repos = yield* runDbOperation(
+				() =>
+					db
+						.prepare('SELECT * FROM repos ORDER BY name')
+						.all() as Repo[],
+				'Failed to get all repos',
+			);
+
+			return yield* Effect.all(
+				repos.map((repo) =>
+					runDbOperation(() => {
+						const paths = db
+							.prepare(
+								'SELECT * FROM repo_paths WHERE repo_id = ? ORDER BY last_accessed_at DESC',
+							)
+							.all(repo.id) as RepoPath[];
+						return { ...repo, paths };
+					}, 'Failed to get repo paths'),
+				),
+			);
+		}).pipe(Effect.withSpan('repo.getAllRepos')),
+
+		getRepoById: (id: string) =>
+			Effect.gen(function* () {
+				const db = getDatabase();
+				const repo = yield* runDbOperation(
+					() =>
+						db
+							.prepare('SELECT * FROM repos WHERE id = ?')
+							.get(id) as Repo | undefined,
+					'Failed to get repo by id',
+				);
+
+				if (!repo) {
+					return yield* Effect.fail(new RepoNotFoundError({ id }));
+				}
+
+				return repo;
+			}).pipe(Effect.withSpan('repo.getRepoById')),
+
+		getRepoByRemoteUrl: (remoteUrl: string) =>
+			runDbOperation(
+				() =>
+					getDatabase()
+						.prepare('SELECT * FROM repos WHERE remote_url = ?')
+						.get(remoteUrl) as Repo | undefined,
+				'Failed to get repo by remote URL',
+			).pipe(Effect.withSpan('repo.getRepoByRemoteUrl')),
+
+		getRepoByPath: (path: string) =>
+			Effect.gen(function* () {
+				const db = getDatabase();
+				const repoPath = yield* runDbOperation(
+					() =>
+						db
+							.prepare('SELECT * FROM repo_paths WHERE path = ?')
+							.get(path) as RepoPath | undefined,
+					'Failed to get repo path',
+				);
+
+				if (!repoPath) return undefined;
+
+				return yield* runDbOperation(
+					() =>
+						db
+							.prepare('SELECT * FROM repos WHERE id = ?')
+							.get(repoPath.repo_id) as Repo | undefined,
+					'Failed to get repo',
+				);
+			}).pipe(Effect.withSpan('repo.getRepoByPath')),
+
+		createOrGetRepoFromPath: (path: string) =>
+			Effect.gen(function* () {
+				const db = getDatabase();
+				const git = createGitService();
+
+				// Check if path already registered
+				const existingPath = yield* runDbOperation(
+					() =>
+						db
+							.prepare('SELECT * FROM repo_paths WHERE path = ?')
+							.get(path) as RepoPath | undefined,
+					'Failed to check existing path',
+				);
+
+				if (existingPath) {
+					const repo = yield* runDbOperation(
+						() =>
+							db
+								.prepare('SELECT * FROM repos WHERE id = ?')
+								.get(existingPath.repo_id) as Repo,
+						'Failed to get existing repo',
+					);
+
+					yield* runDbOperation(
+						() =>
+							db
+								.prepare(
+									"UPDATE repo_paths SET last_accessed_at = datetime('now') WHERE id = ?",
+								)
+								.run(existingPath.id),
+						'Failed to update last accessed',
+					);
+
+					return { repo, repoPath: existingPath, isNew: false };
+				}
+
+				// Get git info
+				const remoteUrl = yield* Effect.tryPromise({
+					try: () => git.getRemoteUrl(path),
+					catch: () => null,
+				}).pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+				const repoName = path.split('/').pop() || 'unknown';
+
+				// Check if repo with same remote exists
+				let repo: Repo | undefined;
+				if (remoteUrl) {
+					repo = yield* runDbOperation(
+						() =>
+							db
+								.prepare(
+									'SELECT * FROM repos WHERE remote_url = ?',
+								)
+								.get(remoteUrl) as Repo | undefined,
+						'Failed to check existing repo by remote',
+					);
+				}
+
+				// Create repo if not exists
+				if (!repo) {
+					const repoId = generateId();
+					const baseBranch = yield* Effect.tryPromise({
+						try: () => git.getDefaultBranch(path),
+						catch: () => 'main',
+					}).pipe(Effect.catchAll(() => Effect.succeed('main')));
+
+					yield* runDbOperation(
+						() =>
+							db
+								.prepare(
+									'INSERT INTO repos (id, remote_url, name, base_branch) VALUES (?, ?, ?, ?)',
+								)
+								.run(repoId, remoteUrl, repoName, baseBranch),
+						'Failed to create repo',
+					);
+
+					repo = yield* runDbOperation(
+						() =>
+							db
+								.prepare('SELECT * FROM repos WHERE id = ?')
+								.get(repoId) as Repo,
+						'Failed to get created repo',
+					);
+				}
+
+				// Create repo path
+				const pathId = generateId();
+				yield* runDbOperation(
+					() =>
+						db
+							.prepare(
+								"INSERT INTO repo_paths (id, repo_id, path, last_accessed_at) VALUES (?, ?, ?, datetime('now'))",
+							)
+							.run(pathId, repo!.id, path),
+					'Failed to create repo path',
+				);
+
+				const repoPath = yield* runDbOperation(
+					() =>
+						db
+							.prepare('SELECT * FROM repo_paths WHERE id = ?')
+							.get(pathId) as RepoPath,
+					'Failed to get created repo path',
+				);
+
+				yield* Effect.logInfo(`Created repo: ${repo!.name} at ${path}`);
+
+				return { repo: repo!, repoPath, isNew: true };
+			}).pipe(Effect.withSpan('repo.createOrGetRepoFromPath')),
+
+		deleteRepo: (id: string) =>
+			runDbOperation(
+				() =>
+					getDatabase()
+						.prepare('DELETE FROM repos WHERE id = ?')
+						.run(id),
+				'Failed to delete repo',
+			).pipe(
+				Effect.map(() => undefined),
+				Effect.withSpan('repo.deleteRepo'),
+			),
+
+		deleteRepoPath: (pathId: string) =>
+			Effect.gen(function* () {
+				const db = getDatabase();
+				const repoPath = yield* runDbOperation(
+					() =>
+						db
+							.prepare('SELECT * FROM repo_paths WHERE id = ?')
+							.get(pathId) as RepoPath | undefined,
+					'Failed to get repo path',
+				);
+
+				if (!repoPath) return;
+
+				yield* runDbOperation(
+					() =>
+						db
+							.prepare('DELETE FROM repo_paths WHERE id = ?')
+							.run(pathId),
+					'Failed to delete repo path',
+				);
+
+				// Check if repo has any other paths
+				const otherPaths = yield* runDbOperation(
+					() =>
+						db
+							.prepare(
+								'SELECT COUNT(*) as count FROM repo_paths WHERE repo_id = ?',
+							)
+							.get(repoPath.repo_id) as { count: number },
+					'Failed to check other paths',
+				);
+
+				if (otherPaths.count === 0) {
+					yield* runDbOperation(
+						() =>
+							db
+								.prepare('DELETE FROM repos WHERE id = ?')
+								.run(repoPath.repo_id),
+						'Failed to delete repo',
+					);
+				}
+			}).pipe(Effect.withSpan('repo.deleteRepoPath')),
+
+		updateBaseBranch: (repoId: string, baseBranch: string) =>
+			runDbOperation(
+				() =>
+					getDatabase()
+						.prepare(
+							'UPDATE repos SET base_branch = ? WHERE id = ?',
+						)
+						.run(baseBranch, repoId),
+				'Failed to update base branch',
+			).pipe(
+				Effect.map(() => undefined),
+				Effect.withSpan('repo.updateBaseBranch'),
+			),
+
+		getOrCreateSession: (repoId: string, path: string) =>
+			Effect.gen(function* () {
+				const db = getDatabase();
+				const git = createGitService();
+
+				const currentBranch = yield* Effect.tryPromise({
+					try: () => git.getCurrentBranch(path),
+					catch: (error) =>
+						new DatabaseError({
+							message: 'Failed to get current branch',
+							cause: error,
+						}),
+				});
+
+				const existing = yield* runDbOperation(
+					() =>
+						db
+							.prepare(
+								'SELECT * FROM review_sessions WHERE repo_id = ? AND branch = ?',
+							)
+							.get(repoId, currentBranch) as
+							| ReviewSession
+							| undefined,
+					'Failed to check existing session',
+				);
+
+				if (existing) return existing;
+
+				const sessionId = generateId();
+				yield* runDbOperation(
+					() =>
+						db
+							.prepare(
+								'INSERT INTO review_sessions (id, repo_id, branch) VALUES (?, ?, ?)',
+							)
+							.run(sessionId, repoId, currentBranch),
+					'Failed to create session',
+				);
+
+				return yield* runDbOperation(
+					() =>
+						db
+							.prepare(
+								'SELECT * FROM review_sessions WHERE id = ?',
+							)
+							.get(sessionId) as ReviewSession,
+					'Failed to get created session',
+				);
+			}).pipe(Effect.withSpan('repo.getOrCreateSession')),
+
+		getSessionById: (id: string) =>
+			Effect.gen(function* () {
+				const session = yield* runDbOperation(
+					() =>
+						getDatabase()
+							.prepare(
+								'SELECT * FROM review_sessions WHERE id = ?',
+							)
+							.get(id) as ReviewSession | undefined,
+					'Failed to get session',
+				);
+
+				if (!session) {
+					return yield* Effect.fail(new SessionNotFoundError({ id }));
+				}
+
+				return session;
+			}).pipe(Effect.withSpan('repo.getSessionById')),
+
+		getSessionWithRepo: (sessionId: string) =>
+			Effect.gen(function* () {
+				const db = getDatabase();
+
+				const session = yield* runDbOperation(
+					() =>
+						db
+							.prepare(
+								'SELECT * FROM review_sessions WHERE id = ?',
+							)
+							.get(sessionId) as ReviewSession | undefined,
+					'Failed to get session',
+				);
+
+				if (!session) {
+					return yield* Effect.fail(
+						new SessionNotFoundError({ id: sessionId }),
+					);
+				}
+
+				const repo = yield* runDbOperation(
+					() =>
+						db
+							.prepare('SELECT * FROM repos WHERE id = ?')
+							.get(session.repo_id) as Repo | undefined,
+					'Failed to get repo',
+				);
+
+				if (!repo) {
+					return yield* Effect.fail(
+						new RepoNotFoundError({ id: session.repo_id }),
+					);
+				}
+
+				const paths = yield* runDbOperation(
+					() =>
+						db
+							.prepare(
+								'SELECT * FROM repo_paths WHERE repo_id = ? ORDER BY last_accessed_at DESC',
+							)
+							.all(repo.id) as RepoPath[],
+					'Failed to get repo paths',
+				);
+
+				return { session, repo: { ...repo, paths } };
+			}).pipe(Effect.withSpan('repo.getSessionWithRepo')),
+
+		getRepoPaths: (repoId: string) =>
+			runDbOperation(
+				() =>
+					getDatabase()
+						.prepare(
+							'SELECT * FROM repo_paths WHERE repo_id = ? ORDER BY last_accessed_at DESC',
+						)
+						.all(repoId) as RepoPath[],
+				'Failed to get repo paths',
+			).pipe(Effect.withSpan('repo.getRepoPaths')),
+
+		updateSessionBaseBranch: (
+			sessionId: string,
+			baseBranch: string | null,
+		) =>
+			runDbOperation(
+				() =>
+					getDatabase()
+						.prepare(
+							'UPDATE review_sessions SET base_branch = ? WHERE id = ?',
+						)
+						.run(baseBranch, sessionId),
+				'Failed to update session base branch',
+			).pipe(
+				Effect.map(() => undefined),
+				Effect.withSpan('repo.updateSessionBaseBranch'),
+			),
+	};
+};
+
+// Live layer
+export const RepoServiceLive = Layer.succeed(RepoService, makeRepoService());
+
+// Legacy compatibility - direct service for use outside Effect context
 export const repoService = {
-	// Get all repos with their paths
 	getAllRepos: (): RepoWithPath[] => {
 		const db = getDatabase();
 		const repos = db
@@ -50,7 +522,6 @@ export const repoService = {
 		});
 	},
 
-	// Get repo by ID
 	getRepoById: (id: string): Repo | undefined => {
 		const db = getDatabase();
 		return db.prepare('SELECT * FROM repos WHERE id = ?').get(id) as
@@ -58,7 +529,6 @@ export const repoService = {
 			| undefined;
 	},
 
-	// Get repo by remote URL
 	getRepoByRemoteUrl: (remoteUrl: string): Repo | undefined => {
 		const db = getDatabase();
 		return db
@@ -66,7 +536,6 @@ export const repoService = {
 			.get(remoteUrl) as Repo | undefined;
 	},
 
-	// Get repo by path (looks up repo_paths then gets the repo)
 	getRepoByPath: (path: string): Repo | undefined => {
 		const db = getDatabase();
 		const repoPath = db
@@ -78,76 +547,18 @@ export const repoService = {
 			.get(repoPath.repo_id) as Repo | undefined;
 	},
 
-	// Create or get repo from a path
 	createOrGetRepoFromPath: async (
 		path: string,
 	): Promise<{ repo: Repo; repoPath: RepoPath; isNew: boolean }> => {
-		const db = getDatabase();
-		const git = createGitService();
-
-		// Check if path already registered
-		const existingPath = db
-			.prepare('SELECT * FROM repo_paths WHERE path = ?')
-			.get(path) as RepoPath | undefined;
-		if (existingPath) {
-			const repo = db
-				.prepare('SELECT * FROM repos WHERE id = ?')
-				.get(existingPath.repo_id) as Repo;
-			// Update last accessed
-			db.prepare(
-				"UPDATE repo_paths SET last_accessed_at = datetime('now') WHERE id = ?",
-			).run(existingPath.id);
-			return { repo, repoPath: existingPath, isNew: false };
-		}
-
-		// Get git info
-		const remoteUrl = await git.getRemoteUrl(path);
-		const repoName = path.split('/').pop() || 'unknown';
-
-		// Check if repo with same remote exists
-		let repo: Repo | undefined;
-		if (remoteUrl) {
-			repo = db
-				.prepare('SELECT * FROM repos WHERE remote_url = ?')
-				.get(remoteUrl) as Repo | undefined;
-		}
-
-		// Create repo if not exists
-		if (!repo) {
-			const repoId = generateId();
-			const baseBranch = await git
-				.getDefaultBranch(path)
-				.catch(() => 'main');
-
-			db.prepare(
-				'INSERT INTO repos (id, remote_url, name, base_branch) VALUES (?, ?, ?, ?)',
-			).run(repoId, remoteUrl, repoName, baseBranch);
-
-			repo = db
-				.prepare('SELECT * FROM repos WHERE id = ?')
-				.get(repoId) as Repo;
-		}
-
-		// Create repo path
-		const pathId = generateId();
-		db.prepare(
-			"INSERT INTO repo_paths (id, repo_id, path, last_accessed_at) VALUES (?, ?, ?, datetime('now'))",
-		).run(pathId, repo.id, path);
-
-		const repoPath = db
-			.prepare('SELECT * FROM repo_paths WHERE id = ?')
-			.get(pathId) as RepoPath;
-
-		return { repo, repoPath, isNew: true };
+		const service = makeRepoService();
+		return Effect.runPromise(service.createOrGetRepoFromPath(path));
 	},
 
-	// Delete repo and all associated data
 	deleteRepo: (id: string): void => {
 		const db = getDatabase();
 		db.prepare('DELETE FROM repos WHERE id = ?').run(id);
 	},
 
-	// Delete a specific path (but keep repo if other paths exist)
 	deleteRepoPath: (pathId: string): void => {
 		const db = getDatabase();
 		const repoPath = db
@@ -157,19 +568,16 @@ export const repoService = {
 
 		db.prepare('DELETE FROM repo_paths WHERE id = ?').run(pathId);
 
-		// Check if repo has any other paths
 		const otherPaths = db
 			.prepare(
 				'SELECT COUNT(*) as count FROM repo_paths WHERE repo_id = ?',
 			)
 			.get(repoPath.repo_id) as { count: number };
 		if (otherPaths.count === 0) {
-			// Delete repo if no paths left
 			db.prepare('DELETE FROM repos WHERE id = ?').run(repoPath.repo_id);
 		}
 	},
 
-	// Update repo base branch
 	updateBaseBranch: (repoId: string, baseBranch: string): void => {
 		const db = getDatabase();
 		db.prepare('UPDATE repos SET base_branch = ? WHERE id = ?').run(
@@ -178,34 +586,12 @@ export const repoService = {
 		);
 	},
 
-	// Session management
 	getOrCreateSession: async (
 		repoId: string,
 		path: string,
 	): Promise<ReviewSession> => {
-		const db = getDatabase();
-		const git = createGitService();
-
-		const currentBranch = await git.getCurrentBranch(path);
-
-		// Check for existing session
-		const existing = db
-			.prepare(
-				'SELECT * FROM review_sessions WHERE repo_id = ? AND branch = ?',
-			)
-			.get(repoId, currentBranch) as ReviewSession | undefined;
-
-		if (existing) return existing;
-
-		// Create new session
-		const sessionId = generateId();
-		db.prepare(
-			'INSERT INTO review_sessions (id, repo_id, branch) VALUES (?, ?, ?)',
-		).run(sessionId, repoId, currentBranch);
-
-		return db
-			.prepare('SELECT * FROM review_sessions WHERE id = ?')
-			.get(sessionId) as ReviewSession;
+		const service = makeRepoService();
+		return Effect.runPromise(service.getOrCreateSession(repoId, path));
 	},
 
 	getSessionById: (id: string): ReviewSession | undefined => {
@@ -215,7 +601,6 @@ export const repoService = {
 			.get(id) as ReviewSession | undefined;
 	},
 
-	// Get session with repo info
 	getSessionWithRepo: (
 		sessionId: string,
 	): { session: ReviewSession; repo: RepoWithPath } | undefined => {
@@ -239,7 +624,6 @@ export const repoService = {
 		return { session, repo: { ...repo, paths } };
 	},
 
-	// Get paths for a repo
 	getRepoPaths: (repoId: string): RepoPath[] => {
 		const db = getDatabase();
 		return db
@@ -249,7 +633,6 @@ export const repoService = {
 			.all(repoId) as RepoPath[];
 	},
 
-	// Update session base branch override
 	updateSessionBaseBranch: (
 		sessionId: string,
 		baseBranch: string | null,

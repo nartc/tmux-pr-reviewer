@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { useEffect, useState } from 'react';
 import { VscCheck, VscSettings } from 'react-icons/vsc';
+import { useAsyncAction } from '../lib/use-async-action';
 
 type AIProvider = 'google' | 'openai' | 'anthropic';
 
@@ -20,7 +21,15 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 		null,
 	);
 	const [selectedModel, setSelectedModel] = useState<string | null>(null);
-	const [saving, setSaving] = useState(false);
+	const [loading, setLoading] = useState(false);
+
+	const { submit, isPending: saving } = useAsyncAction({
+		successMessage: 'AI settings saved',
+		onSuccess: () => {
+			setOpen(false);
+			onSettingsChange?.();
+		},
+	});
 
 	useEffect(() => {
 		if (open) {
@@ -29,6 +38,7 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 	}, [open]);
 
 	const fetchSettings = async () => {
+		setLoading(true);
 		try {
 			const res = await fetch('/api/process');
 			const data = await res.json();
@@ -48,27 +58,20 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 		} catch (error) {
 			console.error('Failed to fetch AI settings:', error);
 		}
+		setLoading(false);
 	};
 
-	const handleSave = async () => {
+	const handleSave = () => {
 		if (!selectedProvider || !selectedModel) return;
 
-		setSaving(true);
-		try {
-			await fetch('/api/process', {
-				method: 'POST',
-				body: new URLSearchParams({
-					intent: 'saveSettings',
-					provider: selectedProvider,
-					model: selectedModel,
-				}),
-			});
-			setOpen(false);
-			onSettingsChange?.();
-		} catch (error) {
-			console.error('Failed to save AI settings:', error);
-		}
-		setSaving(false);
+		submit(
+			{
+				intent: 'saveSettings',
+				provider: selectedProvider,
+				model: selectedModel,
+			},
+			{ method: 'POST', action: '/api/process' },
+		);
 	};
 
 	const handleProviderChange = (provider: AIProvider) => {
@@ -82,9 +85,9 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 			<Dialog.Trigger asChild>
 				<button
 					className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-					title="AI Settings"
+					aria-label="AI Settings"
 				>
-					<VscSettings className="w-4 h-4" />
+					<VscSettings className="w-4 h-4" aria-hidden="true" />
 				</button>
 			</Dialog.Trigger>
 
@@ -95,7 +98,11 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 						AI Settings
 					</Dialog.Title>
 
-					{availableProviders.length === 0 ? (
+					{loading ? (
+						<div className="text-sm text-gray-500 py-4">
+							Loading...
+						</div>
+					) : availableProviders.length === 0 ? (
 						<div className="text-sm text-gray-500 py-4">
 							<p className="mb-2">No AI providers configured.</p>
 							<p>Set one of these environment variables:</p>
@@ -109,15 +116,26 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 						<div className="space-y-4">
 							{/* Provider selection */}
 							<div>
-								<label className="block text-sm font-medium mb-2">
+								<label
+									id="provider-label"
+									className="block text-sm font-medium mb-2"
+								>
 									Provider
 								</label>
-								<div className="flex flex-wrap gap-2">
+								<div
+									role="radiogroup"
+									aria-labelledby="provider-label"
+									className="flex flex-wrap gap-2"
+								>
 									{availableProviders.map((provider) => (
 										<button
 											key={provider}
 											onClick={() =>
 												handleProviderChange(provider)
+											}
+											role="radio"
+											aria-checked={
+												selectedProvider === provider
 											}
 											className={`px-3 py-1.5 text-sm rounded border transition-colors ${
 												selectedProvider === provider
@@ -135,10 +153,14 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 							{selectedProvider &&
 								providerModels[selectedProvider] && (
 									<div>
-										<label className="block text-sm font-medium mb-2">
+										<label
+											htmlFor="model-select"
+											className="block text-sm font-medium mb-2"
+										>
 											Model
 										</label>
 										<select
+											id="model-select"
 											value={selectedModel || ''}
 											onChange={(e) =>
 												setSelectedModel(e.target.value)
@@ -178,7 +200,10 @@ export function AISettings({ onSettingsChange }: AISettingsProps) {
 								}
 								className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
 							>
-								<VscCheck className="w-4 h-4" />
+								<VscCheck
+									className="w-4 h-4"
+									aria-hidden="true"
+								/>
 								{saving ? 'Saving...' : 'Save'}
 							</button>
 						)}

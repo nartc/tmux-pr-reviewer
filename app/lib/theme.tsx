@@ -8,16 +8,20 @@ import {
 
 type Theme = 'light' | 'dark' | 'system';
 type ResolvedTheme = 'light' | 'dark';
+type Density = 'normal' | 'compact';
 
 interface ThemeContextValue {
 	theme: Theme;
 	resolvedTheme: ResolvedTheme;
 	setTheme: (theme: Theme) => void;
+	density: Density;
+	setDensity: (density: Density) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const THEME_KEY = 'pr-reviewer-theme';
+const DENSITY_KEY = 'pr-reviewer-density';
 
 function getSystemTheme(): ResolvedTheme {
 	if (typeof window === 'undefined') return 'light';
@@ -34,15 +38,23 @@ function resolveTheme(theme: Theme): ResolvedTheme {
 export function ThemeProvider({ children }: { children: ReactNode }) {
 	const [theme, setThemeState] = useState<Theme>('system');
 	const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
+	const [density, setDensityState] = useState<Density>('normal');
 
-	// Initialize theme from localStorage
+	// Initialize theme and density from localStorage
 	useEffect(() => {
-		const stored = localStorage.getItem(THEME_KEY) as Theme | null;
-		if (stored && ['light', 'dark', 'system'].includes(stored)) {
-			setThemeState(stored);
-			setResolvedTheme(resolveTheme(stored));
+		const storedTheme = localStorage.getItem(THEME_KEY) as Theme | null;
+		if (storedTheme && ['light', 'dark', 'system'].includes(storedTheme)) {
+			setThemeState(storedTheme);
+			setResolvedTheme(resolveTheme(storedTheme));
 		} else {
 			setResolvedTheme(getSystemTheme());
+		}
+
+		const storedDensity = localStorage.getItem(
+			DENSITY_KEY,
+		) as Density | null;
+		if (storedDensity && ['normal', 'compact'].includes(storedDensity)) {
+			setDensityState(storedDensity);
 		}
 	}, []);
 
@@ -64,14 +76,29 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 		document.documentElement.classList.add(resolvedTheme);
 	}, [resolvedTheme]);
 
+	// Apply density to body
+	useEffect(() => {
+		document.body.classList.remove('normal', 'compact');
+		if (density === 'compact') {
+			document.body.classList.add('compact');
+		}
+	}, [density]);
+
 	const setTheme = (newTheme: Theme) => {
 		setThemeState(newTheme);
 		setResolvedTheme(resolveTheme(newTheme));
 		localStorage.setItem(THEME_KEY, newTheme);
 	};
 
+	const setDensity = (newDensity: Density) => {
+		setDensityState(newDensity);
+		localStorage.setItem(DENSITY_KEY, newDensity);
+	};
+
 	return (
-		<ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
+		<ThemeContext.Provider
+			value={{ theme, resolvedTheme, setTheme, density, setDensity }}
+		>
 			{children}
 		</ThemeContext.Provider>
 	);

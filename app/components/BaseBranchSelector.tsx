@@ -60,9 +60,9 @@ export function BaseBranchSelector({
 			<Dialog.Trigger asChild>
 				<button
 					className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-					title="Change base branch"
+					aria-label={`Change base branch (currently ${currentBaseBranch})`}
 				>
-					<VscSourceControl className="w-4 h-4" />
+					<VscSourceControl className="w-4 h-4" aria-hidden="true" />
 					<span>{currentBaseBranch}</span>
 				</button>
 			</Dialog.Trigger>
@@ -74,7 +74,11 @@ export function BaseBranchSelector({
 						Select Base Branch
 					</Dialog.Title>
 
-					<div className="space-y-2 mb-6">
+					<div
+						role="radiogroup"
+						aria-label="Select base branch"
+						className="space-y-2 mb-6"
+					>
 						{loading ? (
 							<div className="text-sm text-gray-500">
 								Loading branches...
@@ -84,6 +88,8 @@ export function BaseBranchSelector({
 								<button
 									key={branch}
 									onClick={() => setSelectedBranch(branch)}
+									role="radio"
+									aria-checked={selectedBranch === branch}
 									className={`w-full px-3 py-2 text-left rounded flex items-center justify-between transition-colors ${
 										selectedBranch === branch
 											? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
@@ -92,7 +98,10 @@ export function BaseBranchSelector({
 								>
 									<span className="text-sm">{branch}</span>
 									{selectedBranch === branch && (
-										<VscCheck className="w-4 h-4" />
+										<VscCheck
+											className="w-4 h-4"
+											aria-hidden="true"
+										/>
 									)}
 								</button>
 							))
@@ -101,10 +110,14 @@ export function BaseBranchSelector({
 
 					{/* Custom branch input */}
 					<div className="mb-6">
-						<label className="block text-sm font-medium mb-2">
+						<label
+							htmlFor="custom-branch-input"
+							className="block text-sm font-medium mb-2"
+						>
 							Or enter a custom branch:
 						</label>
 						<input
+							id="custom-branch-input"
 							type="text"
 							value={selectedBranch}
 							onChange={(e) => setSelectedBranch(e.target.value)}

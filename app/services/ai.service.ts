@@ -2,11 +2,17 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateText } from 'ai';
+import { Context, Effect, Layer } from 'effect';
+import {
+	AIError,
+	AIProviderUnavailableError,
+	DatabaseError,
+} from '../lib/errors.js';
 import type { Comment } from './comment.service';
-import { getDatabase } from './db.service';
+import { DbService, execute, queryOne } from './db.service';
 
 // Provider configuration
-type AIProvider = 'google' | 'openai' | 'anthropic';
+export type AIProvider = 'google' | 'openai' | 'anthropic';
 
 interface ProviderConfig {
 	name: AIProvider;
@@ -67,16 +73,232 @@ Format your response as a list of improved comments, each with:
 
 Be concise but thorough. Focus on actionable feedback.`;
 
-// AI service
+// AIService interface
+export interface AIService {
+	readonly getAvailableProviders: Effect.Effect<AIProvider[], never>;
+
+	readonly getSettings: Effect.Effect<
+		{ provider: AIProvider | null; model: string | null },
+		DatabaseError,
+		DbService
+	>;
+
+	readonly saveSettings: (
+		provider: AIProvider,
+		model: string,
+	) => Effect.Effect<void, DatabaseError, DbService>;
+
+	readonly processComments: (
+		comments: Comment[],
+	) => Effect.Effect<
+		string,
+		AIError | AIProviderUnavailableError | DatabaseError,
+		DbService
+	>;
+
+	readonly generateWithProvider: (
+		providerName: AIProvider,
+		modelName: string,
+		prompt: string,
+	) => Effect.Effect<string, AIError | AIProviderUnavailableError>;
+
+	readonly getModelsForProvider: (provider: AIProvider) => string[];
+}
+
+export const AIService = Context.GenericTag<AIService>('AIService');
+
+// Implementation
+const makeAIService = (): AIService => {
+	const getAvailableProviders = Effect.sync(() =>
+		providers.filter((p) => process.env[p.envKey]).map((p) => p.name),
+	).pipe(Effect.withSpan('ai.getAvailableProviders'));
+
+	const getSettings = Effect.gen(function* () {
+		const providerRow = yield* queryOne<{ value: string }>(
+			"SELECT value FROM app_config WHERE key = 'ai_provider'",
+		);
+		const modelRow = yield* queryOne<{ value: string }>(
+			"SELECT value FROM app_config WHERE key = 'ai_model'",
+		);
+
+		return {
+			provider: (providerRow?.value as AIProvider) || null,
+			model: modelRow?.value || null,
+		};
+	}).pipe(Effect.withSpan('ai.getSettings'));
+
+	const saveSettings = (provider: AIProvider, model: string) =>
+		Effect.gen(function* () {
+			yield* execute(
+				"INSERT OR REPLACE INTO app_config (key, value) VALUES ('ai_provider', ?)",
+				[provider],
+			);
+			yield* execute(
+				"INSERT OR REPLACE INTO app_config (key, value) VALUES ('ai_model', ?)",
+				[model],
+			);
+			yield* Effect.logInfo('AI settings saved', { provider, model });
+		}).pipe(Effect.withSpan('ai.saveSettings'));
+
+	const generateWithProvider = (
+		providerName: AIProvider,
+		modelName: string,
+		prompt: string,
+	) =>
+		Effect.gen(function* () {
+			const providerConfig = providers.find(
+				(p) => p.name === providerName,
+			);
+			if (!providerConfig) {
+				return yield* Effect.fail(
+					new AIProviderUnavailableError({ provider: providerName }),
+				);
+			}
+
+			if (!process.env[providerConfig.envKey]) {
+				return yield* Effect.fail(
+					new AIProviderUnavailableError({ provider: providerName }),
+				);
+			}
+
+			yield* Effect.logDebug('Generating with provider', {
+				provider: providerName,
+				model: modelName,
+			});
+
+			const client = providerConfig.createClient();
+			const model = client(modelName);
+
+			const result = yield* Effect.tryPromise({
+				try: async () => {
+					const { text } = await generateText({
+						model,
+						prompt,
+					});
+					return text;
+				},
+				catch: (error) =>
+					new AIError({
+						message:
+							error instanceof Error
+								? error.message
+								: 'AI generation failed',
+						provider: providerName,
+						cause: error,
+					}),
+			});
+
+			yield* Effect.logInfo('AI generation completed', {
+				provider: providerName,
+				model: modelName,
+				responseLength: result.length,
+			});
+
+			return result;
+		}).pipe(Effect.withSpan('ai.generateWithProvider'));
+
+	const processComments = (comments: Comment[]) =>
+		Effect.gen(function* () {
+			if (comments.length === 0) {
+				return '';
+			}
+
+			// Format comments for the prompt
+			const commentsText = comments
+				.map((c) => {
+					const lineInfo = c.line_start ? `:${c.line_start}` : '';
+					return `**${c.file_path}${lineInfo}**\n${c.content}`;
+				})
+				.join('\n\n---\n\n');
+
+			const prompt = `${PROCESSING_PROMPT}\n\n## Comments to process:\n\n${commentsText}`;
+
+			// Try user-configured provider first
+			const settings = yield* getSettings;
+			if (settings.provider && settings.model) {
+				const result = yield* generateWithProvider(
+					settings.provider,
+					settings.model,
+					prompt,
+				).pipe(
+					Effect.catchAll((error) => {
+						return Effect.gen(function* () {
+							yield* Effect.logWarning(
+								`Configured provider ${settings.provider} failed, trying fallback chain`,
+								{ error: String(error) },
+							);
+							return null;
+						});
+					}),
+				);
+				if (result) return result;
+			}
+
+			// Try fallback chain
+			for (const { provider, model } of fallbackChain) {
+				const providerConfig = providers.find(
+					(p) => p.name === provider,
+				);
+				if (!providerConfig || !process.env[providerConfig.envKey]) {
+					continue;
+				}
+
+				const result = yield* generateWithProvider(
+					provider,
+					model,
+					prompt,
+				).pipe(
+					Effect.catchAll((error) => {
+						return Effect.gen(function* () {
+							yield* Effect.logWarning(
+								`Provider ${provider}/${model} failed`,
+								{
+									error: String(error),
+								},
+							);
+							return null;
+						});
+					}),
+				);
+				if (result) return result;
+			}
+
+			return yield* Effect.fail(
+				new AIError({
+					message:
+						'All AI providers failed. Please check your API keys.',
+				}),
+			);
+		}).pipe(Effect.withSpan('ai.processComments'));
+
+	const getModelsForProvider = (provider: AIProvider): string[] => {
+		const config = providers.find((p) => p.name === provider);
+		return config?.models || [];
+	};
+
+	return {
+		getAvailableProviders,
+		getSettings,
+		saveSettings,
+		processComments,
+		generateWithProvider,
+		getModelsForProvider,
+	};
+};
+
+// Live layer
+export const AIServiceLive = Layer.succeed(AIService, makeAIService());
+
+// Legacy compatibility - direct service for use outside Effect context
+import { getDatabase } from './db.service';
+
 export const aiService = {
-	// Get available providers
 	getAvailableProviders: (): AIProvider[] => {
 		return providers
 			.filter((p) => process.env[p.envKey])
 			.map((p) => p.name);
 	},
 
-	// Get current AI settings from app_config
 	getSettings: (): { provider: AIProvider | null; model: string | null } => {
 		const db = getDatabase();
 		const providerRow = db
@@ -92,7 +314,6 @@ export const aiService = {
 		};
 	},
 
-	// Save AI settings
 	saveSettings: (provider: AIProvider, model: string): void => {
 		const db = getDatabase();
 		db.prepare(
@@ -103,7 +324,6 @@ export const aiService = {
 		).run(model);
 	},
 
-	// Process comments with AI
 	processComments: async (comments: Comment[]): Promise<string> => {
 		if (comments.length === 0) {
 			return '';
@@ -159,7 +379,6 @@ export const aiService = {
 		throw new Error('All AI providers failed. Please check your API keys.');
 	},
 
-	// Generate text with a specific provider
 	generateWithProvider: async (
 		providerName: AIProvider,
 		modelName: string,
@@ -181,7 +400,6 @@ export const aiService = {
 		return text;
 	},
 
-	// Get models for a provider
 	getModelsForProvider: (provider: AIProvider): string[] => {
 		const config = providers.find((p) => p.name === provider);
 		return config?.models || [];

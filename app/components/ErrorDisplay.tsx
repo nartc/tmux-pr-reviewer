@@ -54,11 +54,13 @@ export function ErrorDisplay({
 
 	return (
 		<div
+			role="alert"
 			className={`rounded-lg border p-4 ${config.bgClass} ${config.borderClass}`}
 		>
 			<div className="flex items-start gap-3">
 				<Icon
 					className={`w-5 h-5 shrink-0 mt-0.5 ${config.iconClass}`}
+					aria-hidden="true"
 				/>
 				<div className="flex-1 min-w-0">
 					<h3 className={`font-medium ${config.titleClass}`}>
@@ -79,7 +81,10 @@ export function ErrorDisplay({
 							onClick={onRetry}
 							className="mt-3 flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
 						>
-							<VscRefresh className="w-4 h-4" />
+							<VscRefresh
+								className="w-4 h-4"
+								aria-hidden="true"
+							/>
 							Try again
 						</button>
 					)}
@@ -88,8 +93,9 @@ export function ErrorDisplay({
 					<button
 						onClick={onDismiss}
 						className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+						aria-label="Dismiss"
 					>
-						<VscClose className="w-4 h-4" />
+						<VscClose className="w-4 h-4" aria-hidden="true" />
 					</button>
 				)}
 			</div>
@@ -100,8 +106,11 @@ export function ErrorDisplay({
 // Inline error for form fields
 export function InlineError({ message }: { message: string }) {
 	return (
-		<p className="mt-1 text-sm text-red-500 flex items-center gap-1">
-			<VscError className="w-4 h-4" />
+		<p
+			role="alert"
+			className="mt-1 text-sm text-red-500 flex items-center gap-1"
+		>
+			<VscError className="w-4 h-4" aria-hidden="true" />
 			{message}
 		</p>
 	);
@@ -115,15 +124,19 @@ interface ErrorToastProps {
 
 export function ErrorToast({ message, onDismiss }: ErrorToastProps) {
 	return (
-		<div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4">
+		<div
+			role="alert"
+			className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4"
+		>
 			<div className="flex items-center gap-3 px-4 py-3 bg-red-500 text-white rounded-lg shadow-lg">
-				<VscError className="w-5 h-5 shrink-0" />
+				<VscError className="w-5 h-5 shrink-0" aria-hidden="true" />
 				<span className="text-sm">{message}</span>
 				<button
 					onClick={onDismiss}
 					className="p-1 hover:bg-red-600 rounded"
+					aria-label="Dismiss"
 				>
-					<VscClose className="w-4 h-4" />
+					<VscClose className="w-4 h-4" aria-hidden="true" />
 				</button>
 			</div>
 		</div>

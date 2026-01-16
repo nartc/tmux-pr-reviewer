@@ -202,16 +202,30 @@ export function FileExplorer({
 						onClick={() => toggleFolder(node.path)}
 						className="w-full px-2 py-1.5 flex items-center gap-1 text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
 						style={{ paddingLeft: `${depth * 12 + 8}px` }}
+						role="treeitem"
+						aria-expanded={isExpanded}
 					>
 						{isExpanded ? (
-							<VscChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+							<VscChevronDown
+								className="w-4 h-4 text-gray-400 shrink-0"
+								aria-hidden="true"
+							/>
 						) : (
-							<VscChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+							<VscChevronRight
+								className="w-4 h-4 text-gray-400 shrink-0"
+								aria-hidden="true"
+							/>
 						)}
 						{isExpanded ? (
-							<VscFolderOpened className="w-4 h-4 text-yellow-500 shrink-0" />
+							<VscFolderOpened
+								className="w-4 h-4 text-yellow-500 shrink-0"
+								aria-hidden="true"
+							/>
 						) : (
-							<VscFolder className="w-4 h-4 text-yellow-500 shrink-0" />
+							<VscFolder
+								className="w-4 h-4 text-yellow-500 shrink-0"
+								aria-hidden="true"
+							/>
 						)}
 						<span className="text-sm font-medium truncate flex-1">
 							{node.name}
@@ -259,11 +273,17 @@ export function FileExplorer({
 									style={{
 										paddingLeft: `${(depth + 1) * 12 + 8}px`,
 									}}
+									role="treeitem"
+									aria-selected={selectedFile === file.path}
 								>
 									<StatusIcon
 										className={`w-3 h-3 shrink-0 ${colorClass}`}
+										aria-hidden="true"
 									/>
-									<FileIcon className="w-4 h-4 text-gray-400 shrink-0" />
+									<FileIcon
+										className="w-4 h-4 text-gray-400 shrink-0"
+										aria-hidden="true"
+									/>
 									<span className="text-sm truncate flex-1">
 										{fileName}
 									</span>
@@ -305,7 +325,9 @@ export function FileExplorer({
 					)}
 				</div>
 			</div>
-			{renderFolder(folderTree)}
+			<div role="tree" aria-label="Changed files">
+				{renderFolder(folderTree)}
+			</div>
 		</div>
 	);
 }
