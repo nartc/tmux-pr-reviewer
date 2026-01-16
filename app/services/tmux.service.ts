@@ -144,8 +144,8 @@ const makeTmuxService = (): TmuxService => {
 		lineStart: number | null,
 		content: string,
 	): string => {
-		const lineInfo = lineStart ? `:${lineStart}` : '';
-		return `**${filePath}${lineInfo}**\n${content}`;
+		const lineInfo = lineStart ? ` Line ${lineStart}` : '';
+		return `[${filePath}${lineInfo}]\n${content}`;
 	};
 
 	const formatComments = (

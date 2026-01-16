@@ -1,6 +1,8 @@
 import type {
 	AnnotationSide,
+	ChangeContent,
 	ChangeTypes,
+	ContextContent,
 	FileDiffMetadata,
 	Hunk,
 	ParsedPatch,
@@ -17,6 +19,41 @@ import {
 } from 'react-icons/vsc';
 import { useTheme } from '../lib/theme.js';
 import { InlineCommentForm } from './InlineCommentForm.js';
+
+/**
+ * Calculate the actual changed line range within a hunk.
+ * The hunk's additionStart/additionLines includes context lines,
+ * but we want the actual first and last changed (added) lines.
+ */
+function getActualChangedLineRange(hunk: Hunk): {
+	start: number;
+	end: number;
+} {
+	let lineNumber = hunk.additionStart;
+	let firstChangeLine: number | null = null;
+	let lastChangeLine: number | null = null;
+
+	for (const content of hunk.hunkContent) {
+		if (content.type === 'context') {
+			lineNumber += (content as ContextContent).lines.length;
+		} else if (content.type === 'change') {
+			const changeContent = content as ChangeContent;
+			if (changeContent.additions.length > 0) {
+				if (firstChangeLine === null) {
+					firstChangeLine = lineNumber;
+				}
+				lineNumber += changeContent.additions.length;
+				lastChangeLine = lineNumber - 1;
+			}
+		}
+	}
+
+	// Fallback to hunk range if no changes found
+	return {
+		start: firstChangeLine ?? hunk.additionStart,
+		end: lastChangeLine ?? hunk.additionStart + hunk.additionLines - 1,
+	};
+}
 
 type DiffStyle = 'split' | 'unified';
 
@@ -128,6 +165,12 @@ function DiffViewerClient({
 			filePath: string,
 			getHoveredLine: () => HoveredLineResult | undefined,
 		) => {
+			// Skip if we just completed a multi-line selection
+			// (mouse-up after drag can trigger hover utility click)
+			if (justSelectedMultiLineRef.current) {
+				return;
+			}
+
 			const hoveredLine = getHoveredLine();
 			if (hoveredLine) {
 				setCommentForm({
@@ -140,9 +183,22 @@ function DiffViewerClient({
 		[],
 	);
 
+	// Track if we just completed a multi-line selection to prevent hover utility from overwriting
+	const justSelectedMultiLineRef = useRef(false);
+
 	const handleLineSelectionEnd = useCallback(
 		(filePath: string, range: SelectedLineRange | null) => {
 			if (range) {
+				const isMultiLine = range.start !== range.end;
+				justSelectedMultiLineRef.current = isMultiLine;
+
+				// Reset the flag after a short delay to allow single-line clicks again
+				if (isMultiLine) {
+					setTimeout(() => {
+						justSelectedMultiLineRef.current = false;
+					}, 100);
+				}
+
 				setSelectedLines((prev) => new Map(prev).set(filePath, range));
 				setCommentForm({
 					filePath,
@@ -155,16 +211,24 @@ function DiffViewerClient({
 		[],
 	);
 
-	const handleFileComment = useCallback((filePath: string) => {
-		setCommentForm({ filePath, lineStart: 1, side: 'additions' });
-	}, []);
+	const handleFileComment = useCallback(
+		(filePath: string, firstLineNumber: number) => {
+			setCommentForm({
+				filePath,
+				lineStart: firstLineNumber,
+				side: 'additions',
+			});
+		},
+		[],
+	);
 
 	const handleHunkComment = useCallback(
 		(filePath: string, hunk: Hunk, _hunkIndex: number) => {
+			const { start, end } = getActualChangedLineRange(hunk);
 			setCommentForm({
 				filePath,
-				lineStart: hunk.additionStart,
-				lineEnd: hunk.additionStart + hunk.additionLines - 1,
+				lineStart: start,
+				lineEnd: end,
 				side: 'additions',
 			});
 			setTimeout(() => {
@@ -247,7 +311,9 @@ function DiffViewerClient({
 						>
 							<StickyFileHeader
 								fileDiff={fileDiff}
-								onAddComment={() => handleFileComment(filePath)}
+								onAddComment={(firstLine) =>
+									handleFileComment(filePath, firstLine)
+								}
 								onAddHunkComment={(hunk, hunkIndex) =>
 									handleHunkComment(filePath, hunk, hunkIndex)
 								}
@@ -332,7 +398,7 @@ function DiffViewerClient({
 
 interface StickyFileHeaderProps {
 	fileDiff: FileDiffMetadata;
-	onAddComment: () => void;
+	onAddComment: (firstLineNumber: number) => void;
 	onAddHunkComment: (hunk: Hunk, hunkIndex: number) => void;
 }
 
@@ -391,8 +457,9 @@ function StickyFileHeader({
 	};
 
 	const getHunkLabel = (hunk: Hunk, index: number) => {
+		const { start, end } = getActualChangedLineRange(hunk);
 		const context = hunk.hunkContext ? ` - ${hunk.hunkContext}` : '';
-		return `Hunk ${index + 1}: Lines ${hunk.additionStart}-${hunk.additionStart + hunk.additionLines}${context}`;
+		return `Hunk ${index + 1}: Lines ${start}-${end}${context}`;
 	};
 
 	return (
@@ -409,7 +476,7 @@ function StickyFileHeader({
 				)}
 				{getLabel(changeType)}
 			</div>
-			<div className="relative flex items-center gap-1">
+			<div className="relative flex items-center gap-2">
 				{hunks.length > 0 && (
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
@@ -432,7 +499,17 @@ function StickyFileHeader({
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
 				)}
-				<Button variant="ghost" size="1" onClick={onAddComment}>
+				<Button
+					variant="ghost"
+					size="1"
+					onClick={() => {
+						const firstHunk = hunks[0];
+						const firstLine = firstHunk
+							? getActualChangedLineRange(firstHunk).start
+							: 1;
+						onAddComment(firstLine);
+					}}
+				>
 					<VscComment aria-hidden="true" />
 					File
 				</Button>

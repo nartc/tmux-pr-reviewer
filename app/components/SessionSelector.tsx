@@ -1,7 +1,19 @@
-import { Badge, DropdownMenu, IconButton, Text } from '@radix-ui/themes';
+import {
+	Badge,
+	DropdownMenu,
+	IconButton,
+	Text,
+	Tooltip,
+} from '@radix-ui/themes';
 import { useCallback, useEffect, useId, useState } from 'react';
-import { VscRefresh, VscTerminal, VscWarning } from 'react-icons/vsc';
+import {
+	VscBeaker,
+	VscRefresh,
+	VscTerminal,
+	VscWarning,
+} from 'react-icons/vsc';
 import { useAsyncState } from '../lib/async-state';
+import { useAsyncAction } from '../lib/use-async-action';
 import type { TmuxSession, TmuxWindow } from '../services/tmux.service';
 
 interface SessionSelectorProps {
@@ -148,6 +160,21 @@ export function SessionSelector({
 		(s) => s.name === selectedSession,
 	);
 
+	const { submit: sendTest, isPending: testPending } = useAsyncAction({
+		successMessage: 'Test message sent!',
+		errorMessage: 'Failed to send test message',
+	});
+
+	const handleTestSession = () => {
+		if (!selectedSession) return;
+
+		const formData = new FormData();
+		formData.append('intent', 'test');
+		formData.append('sessionName', selectedSession);
+
+		sendTest(formData, { method: 'POST', action: '/api/sessions' });
+	};
+
 	if (!available) {
 		return (
 			<div className="flex items-center gap-2 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 rounded">
@@ -271,18 +298,36 @@ export function SessionSelector({
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 
-			<IconButton
-				variant="ghost"
-				size="1"
-				onClick={fetchSessions}
-				disabled={loading}
-				aria-label="Refresh sessions"
-			>
-				<VscRefresh
-					className={loading ? 'animate-spin' : ''}
-					aria-hidden="true"
-				/>
-			</IconButton>
+			<Tooltip content="Refresh sessions">
+				<IconButton
+					variant="ghost"
+					size="1"
+					onClick={fetchSessions}
+					disabled={loading}
+					aria-label="Refresh sessions"
+				>
+					<VscRefresh
+						className={loading ? 'animate-spin' : ''}
+						aria-hidden="true"
+					/>
+				</IconButton>
+			</Tooltip>
+
+			<Tooltip content="Send test message to session">
+				<IconButton
+					variant="ghost"
+					size="1"
+					color="amber"
+					onClick={handleTestSession}
+					disabled={!selectedSession || testPending}
+					aria-label="Test session"
+				>
+					<VscBeaker
+						className={testPending ? 'animate-pulse' : ''}
+						aria-hidden="true"
+					/>
+				</IconButton>
+			</Tooltip>
 		</div>
 	);
 }

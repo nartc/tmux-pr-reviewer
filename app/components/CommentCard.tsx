@@ -1,5 +1,5 @@
-import { IconButton, Text, TextArea } from '@radix-ui/themes';
-import { useState } from 'react';
+import { Button, IconButton, Text, TextArea } from '@radix-ui/themes';
+import { useRef, useState } from 'react';
 import {
 	VscCheck,
 	VscClose,
@@ -25,6 +25,8 @@ export function CommentCard({
 }: CommentCardProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [editContent, setEditContent] = useState(comment.content);
+	const [isExpanded, setIsExpanded] = useState(false);
+	const contentRef = useRef<HTMLDivElement>(null);
 
 	const { submit: submitUpdate, isPending: isUpdating } = useAsyncAction({
 		successMessage: 'Comment updated',
@@ -149,9 +151,27 @@ export function CommentCard({
 				</div>
 			) : (
 				<>
-					<Text size="2" className="whitespace-pre-wrap">
-						{comment.content}
-					</Text>
+					<div
+						ref={contentRef}
+						className={`relative ${!isExpanded ? 'max-h-[4.5em] overflow-hidden' : ''}`}
+					>
+						<Text size="2" className="whitespace-pre-wrap">
+							{comment.content}
+						</Text>
+						{!isExpanded && comment.content.length > 100 && (
+							<div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white dark:from-gray-900 to-transparent" />
+						)}
+					</div>
+					{comment.content.length > 100 && (
+						<Button
+							variant="ghost"
+							size="1"
+							onClick={() => setIsExpanded(!isExpanded)}
+							className="mt-1 px-0"
+						>
+							{isExpanded ? 'Show less' : 'Show more'}
+						</Button>
+					)}
 					{showSentAt && comment.sent_at && (
 						<Text size="1" color="gray" className="mt-2 block">
 							Sent {new Date(comment.sent_at).toLocaleString()}
