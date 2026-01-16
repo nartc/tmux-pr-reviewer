@@ -12,4 +12,12 @@ export default defineConfig(({ isSsrBuild }) => ({
       : undefined,
   },
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  ssr: {
+    // Externalize @pierre/diffs to avoid SSR issues with lru_map
+    noExternal: [],
+    external: ["@pierre/diffs"],
+  },
+  optimizeDeps: {
+    include: ["lru_map"],
+  },
 }));
