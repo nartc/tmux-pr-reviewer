@@ -25,8 +25,8 @@ import {
 	VscDiffRemoved,
 	VscFile,
 } from 'react-icons/vsc';
-import { useTheme } from '../lib/theme.js';
-import { InlineCommentForm } from './InlineCommentForm.js';
+import { useTheme } from '../lib/theme';
+import { InlineCommentForm } from './InlineCommentForm';
 
 // Hoisted static loading states
 const DiffLoadingState = (
@@ -165,7 +165,7 @@ function DiffViewerClient({
 		Promise.all([
 			import('@pierre/diffs/react'),
 			import('@pierre/diffs'),
-			import('../lib/worker-pool.js'),
+			import('../lib/worker-pool'),
 		]).then(([diffsReact, diffs, workerPool]) => {
 			setDiffComponents({
 				FileDiff: diffsReact.FileDiff,

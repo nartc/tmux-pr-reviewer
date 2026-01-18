@@ -9,7 +9,7 @@ import {
 } from '@radix-ui/themes';
 import { useEffect, useState } from 'react';
 import { VscCheck, VscSettingsGear } from 'react-icons/vsc';
-import { useTheme } from '../lib/theme.js';
+import { useTheme } from '../lib/theme';
 
 type DiffStyle = 'split' | 'unified';
 

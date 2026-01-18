@@ -1,11 +1,11 @@
 import { Layer, Logger, LogLevel, ManagedRuntime } from 'effect';
-import { AIServiceLive } from '../services/ai.service.js';
-import { CommentServiceLive } from '../services/comment.service.js';
-import { DbServiceLive } from '../services/db.service.js';
-import { GitServiceLive } from '../services/git.service.js';
-import { RepoServiceLive } from '../services/repo.service.js';
-import { TmuxServiceLive } from '../services/tmux.service.js';
-import { ConfigServiceLive } from './config.js';
+import { AIServiceLive } from '../services/ai.service';
+import { CommentServiceLive } from '../services/comment.service';
+import { DbServiceLive } from '../services/db.service';
+import { GitServiceLive } from '../services/git.service';
+import { RepoServiceLive } from '../services/repo.service';
+import { TmuxServiceLive } from '../services/tmux.service';
+import { ConfigServiceLive } from './config';
 
 // Logging layer - JSON for production, pretty for development
 const LoggingLive = Layer.mergeAll(

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { useCallback, useState } from 'react';
 import { VscArrowLeft } from 'react-icons/vsc';
 import { Link, useLoaderData, useRevalidator } from 'react-router';
@@ -8,9 +9,10 @@ import { EmptyDiff } from '../components/EmptyStates';
 import { FileExplorer, type DiffFile } from '../components/FileExplorer';
 import { Layout } from '../components/Layout';
 import { SettingsModal } from '../components/SettingsModal';
-import { commentService, type Comment } from '../services/comment.service';
-import { createGitService } from '../services/git.service';
-import { repoService } from '../services/repo.service';
+import { runtime } from '../lib/effect-runtime';
+import { CommentService, type Comment } from '../services/comment.service';
+import { GitService } from '../services/git.service';
+import { RepoService } from '../services/repo.service';
 import type { Route } from './+types/review';
 
 type DiffStyle = 'split' | 'unified';
@@ -29,77 +31,76 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 		throw new Response('Session ID required', { status: 400 });
 	}
 
-	const sessionData = repoService.getSessionWithRepo(sessionId);
-	if (!sessionData) {
-		throw new Response('Session not found', { status: 404 });
-	}
+	return runtime.runPromise(
+		Effect.gen(function* () {
+			const repo = yield* RepoService;
+			const git = yield* GitService;
+			const comments = yield* CommentService;
 
-	const { session, repo } = sessionData;
-	const repoPath = path || repo.paths?.[0]?.path;
+			const { session, repo: repoData } =
+				yield* repo.getSessionWithRepo(sessionId);
 
-	if (!repoPath) {
-		throw new Response('No repository path available', { status: 400 });
-	}
+			const repoPath = path || repoData.paths?.[0]?.path;
 
-	// Get the base branch (session override or repo default)
-	const baseBranch = session.base_branch || repo.base_branch;
+			if (!repoPath) {
+				throw new Response('No repository path available', {
+					status: 400,
+				});
+			}
 
-	// Get diff - use Promise.all to parallelize independent git operations
-	const git = createGitService();
-	let files: DiffFile[] = [];
-	let rawDiff = '';
-	let currentBranch = '';
+			// Get the base branch (session override or repo default)
+			const baseBranch = session.base_branch || repoData.base_branch;
 
-	try {
-		// Parallelize independent git operations
-		const [diffSummary, diffContent, branch] = await Promise.all([
-			git.getDiffSummary(repoPath, baseBranch),
-			git.getDiff(repoPath, baseBranch),
-			git.getCurrentBranch(repoPath),
-		]);
+			// Get diff and current branch in parallel
+			let files: DiffFile[] = [];
+			let rawDiff = '';
+			let currentBranch = '';
 
-		rawDiff = diffContent;
-		currentBranch = branch;
+			const [diffResult, branch] = yield* Effect.all([
+				git
+					.getDiff(repoPath, baseBranch)
+					.pipe(
+						Effect.catchAll(() =>
+							Effect.succeed({ files: [], rawDiff: '' }),
+						),
+					),
+				git
+					.getCurrentBranch(repoPath)
+					.pipe(Effect.catchAll(() => Effect.succeed('unknown'))),
+			]);
 
-		files = diffSummary.files.map((file) => {
-			const isBinary = !('insertions' in file);
+			rawDiff = diffResult.rawDiff;
+			currentBranch = branch;
+
+			files = diffResult.files.map((file) => ({
+				path: file.path,
+				status: file.status,
+				additions: file.additions,
+				deletions: file.deletions,
+			}));
+
+			// Get comments in parallel
+			const [queuedComments, stagedComments, sentComments] =
+				yield* Effect.all([
+					comments.getQueuedComments(sessionId),
+					comments.getStagedComments(sessionId),
+					comments.getSentComments(sessionId),
+				]);
+
 			return {
-				path: file.file,
-				status: isBinary
-					? ('modified' as const)
-					: file.insertions > 0 && file.deletions === 0
-						? ('added' as const)
-						: file.deletions > 0 && file.insertions === 0
-							? ('deleted' as const)
-							: ('modified' as const),
-				additions: isBinary ? 0 : file.insertions,
-				deletions: isBinary ? 0 : file.deletions,
+				session,
+				repo: repoData,
+				repoPath,
+				baseBranch,
+				currentBranch,
+				files,
+				rawDiff,
+				queuedComments,
+				stagedComments,
+				sentComments,
 			};
-		});
-	} catch (error) {
-		console.error('Failed to get diff:', error);
-		currentBranch = await git
-			.getCurrentBranch(repoPath)
-			.catch(() => 'unknown');
-	}
-
-	// Get comments
-	const queuedComments = commentService.getQueuedComments(sessionId);
-	const stagedComments = commentService.getStagedComments(sessionId);
-	const sentComments = commentService.getSentComments(sessionId);
-
-	return {
-		session,
-		repo,
-		repoPath,
-		baseBranch,
-		currentBranch,
-		files,
-		rawDiff,
-		queuedComments,
-		stagedComments,
-		sentComments,
-	};
+		}),
+	);
 }
 
 export default function Review() {

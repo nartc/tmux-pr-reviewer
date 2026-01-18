@@ -1,7 +1,12 @@
+import { Effect } from 'effect';
 import { readdirSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import { createGitService } from '../services/git.service';
+import { runtime } from '../lib/effect-runtime';
+import {
+	type GitService as GitServiceType,
+	GitService,
+} from '../services/git.service';
 
 // Config defaults match app/lib/config.ts
 const MAX_DEPTH = parseInt(process.env.REPO_SCAN_MAX_DEPTH || '3', 10);
@@ -29,62 +34,69 @@ interface GitRepo {
 	name: string;
 }
 
-async function scanForRepos(
+const scanForRepos = (
+	git: GitServiceType,
 	dir: string,
 	depth: number = 0,
-): Promise<GitRepo[]> {
-	if (depth > MAX_DEPTH) return [];
+): Effect.Effect<GitRepo[]> =>
+	Effect.gen(function* () {
+		if (depth > MAX_DEPTH) return [];
 
-	const git = createGitService();
-	const repos: GitRepo[] = [];
+		const repos: GitRepo[] = [];
 
-	try {
-		const entries = readdirSync(dir, { withFileTypes: true });
+		try {
+			const entries = readdirSync(dir, { withFileTypes: true });
 
-		for (const entry of entries) {
-			if (!entry.isDirectory()) continue;
-			if (IGNORED_DIRS.has(entry.name)) continue;
-			if (entry.name.startsWith('.') && entry.name !== '.git') continue;
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+				if (IGNORED_DIRS.has(entry.name)) continue;
+				if (entry.name.startsWith('.') && entry.name !== '.git')
+					continue;
 
-			const fullPath = join(dir, entry.name);
+				const fullPath = join(dir, entry.name);
 
-			// Check if this is a git repo
-			const isRepo = await git.isGitRepo(fullPath);
-			if (isRepo) {
-				repos.push({
-					path: fullPath,
-					name: entry.name,
-				});
-				// Don't recurse into git repos
-				continue;
+				// Check if this is a git repo
+				const isRepo = yield* git.isGitRepo(fullPath);
+				if (isRepo) {
+					repos.push({
+						path: fullPath,
+						name: entry.name,
+					});
+					// Don't recurse into git repos
+					continue;
+				}
+
+				// Recurse into subdirectories
+				const subRepos = yield* scanForRepos(git, fullPath, depth + 1);
+				repos.push(...subRepos);
 			}
-
-			// Recurse into subdirectories
-			const subRepos = await scanForRepos(fullPath, depth + 1);
-			repos.push(...subRepos);
+		} catch {
+			// Ignore permission errors, etc.
 		}
-	} catch {
-		// Ignore permission errors, etc.
-	}
 
-	return repos;
-}
+		return repos;
+	});
 
 export async function loader() {
-	try {
-		const repos = await scanForRepos(SCAN_ROOT);
-		// Sort by name
-		repos.sort((a, b) => a.name.localeCompare(b.name));
-		return Response.json({ repos });
-	} catch (error) {
-		return Response.json(
-			{
-				error:
-					error instanceof Error
-						? error.message
-						: 'Failed to scan repositories',
-			},
-			{ status: 500 },
-		);
-	}
+	return runtime.runPromise(
+		Effect.gen(function* () {
+			const git = yield* GitService;
+			const repos = yield* scanForRepos(git, SCAN_ROOT);
+			// Sort by name
+			repos.sort((a, b) => a.name.localeCompare(b.name));
+			return Response.json({ repos });
+		}).pipe(
+			Effect.catchAll((error) =>
+				Effect.succeed(
+					Response.json(
+						{
+							error:
+								String(error) || 'Failed to scan repositories',
+						},
+						{ status: 500 },
+					),
+				),
+			),
+		),
+	);
 }

@@ -1,27 +1,36 @@
-import { tmuxService } from '../services/tmux.service';
+import { Effect } from 'effect';
+import { runtime } from '../lib/effect-runtime';
+import { TmuxService } from '../services/tmux.service';
 import type { Route } from './+types/api.sessions';
 
 export async function loader() {
-	const isAvailable = tmuxService.isAvailable();
+	return runtime.runPromise(
+		Effect.gen(function* () {
+			const tmux = yield* TmuxService;
 
-	if (!isAvailable) {
-		return Response.json({
-			available: false,
-			sessions: [],
-			error: 'tmux is not installed or not available',
-		});
-	}
+			const isAvailable = yield* tmux.isAvailable;
+			if (!isAvailable) {
+				return Response.json({
+					available: false,
+					sessions: [],
+					error: 'tmux is not installed or not available',
+				});
+			}
 
-	const sessions = await tmuxService.listSessions();
-	const codingAgentSessions = sessions.filter(
-		(s) => s.detectedProcess !== null,
+			const sessions = yield* tmux.listSessions.pipe(
+				Effect.catchAll(() => Effect.succeed([])),
+			);
+			const codingAgentSessions = sessions.filter(
+				(s) => s.detectedProcess !== null,
+			);
+
+			return Response.json({
+				available: true,
+				sessions,
+				codingAgentSessions,
+			});
+		}),
 	);
-
-	return Response.json({
-		available: true,
-		sessions,
-		codingAgentSessions,
-	});
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -38,22 +47,28 @@ export async function action({ request }: Route.ActionArgs) {
 			);
 		}
 
-		try {
-			const testMessage = `[PR Reviewer Test] This is a test message sent at ${new Date().toLocaleTimeString()}. If you see this, the connection is working!`;
-			await tmuxService.sendToSession(sessionName, testMessage);
-			return Response.json({ success: true });
-		} catch (error) {
-			console.error('Test send error:', error);
-			return Response.json(
-				{
-					error:
-						error instanceof Error
-							? error.message
-							: 'Failed to send test',
-				},
-				{ status: 500 },
-			);
-		}
+		return runtime.runPromise(
+			Effect.gen(function* () {
+				const tmux = yield* TmuxService;
+				const testMessage = `[PR Reviewer Test] This is a test message sent at ${new Date().toLocaleTimeString()}. If you see this, the connection is working!`;
+				yield* tmux.sendToSession(sessionName, testMessage);
+				return Response.json({ success: true });
+			}).pipe(
+				Effect.catchAll((error) =>
+					Effect.succeed(
+						Response.json(
+							{
+								error:
+									error instanceof Error
+										? error.message
+										: 'Failed to send test',
+							},
+							{ status: 500 },
+						),
+					),
+				),
+			),
+		);
 	}
 
 	return Response.json({ error: 'Unknown intent' }, { status: 400 });

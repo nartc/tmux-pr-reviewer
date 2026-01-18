@@ -1,12 +1,12 @@
 import { Context, Effect, Layer } from 'effect';
-import { generateId } from '../lib/effect-runtime.js';
+import { generateId } from '../lib/effect-runtime';
 import {
 	DatabaseError,
 	RepoNotFoundError,
 	SessionNotFoundError,
-} from '../lib/errors.js';
-import { getDatabase } from './db.service.js';
-import { createGitService } from './git.service.js';
+} from '../lib/errors';
+import { getDatabase } from './db.service';
+import { createGitService } from './git.service';
 
 // Types
 export interface Repo {
@@ -503,143 +503,3 @@ const makeRepoService = (): RepoService => {
 
 // Live layer
 export const RepoServiceLive = Layer.succeed(RepoService, makeRepoService());
-
-// Legacy compatibility - direct service for use outside Effect context
-export const repoService = {
-	getAllRepos: (): RepoWithPath[] => {
-		const db = getDatabase();
-		const repos = db
-			.prepare('SELECT * FROM repos ORDER BY name')
-			.all() as Repo[];
-
-		return repos.map((repo) => {
-			const paths = db
-				.prepare(
-					'SELECT * FROM repo_paths WHERE repo_id = ? ORDER BY last_accessed_at DESC',
-				)
-				.all(repo.id) as RepoPath[];
-			return { ...repo, paths };
-		});
-	},
-
-	getRepoById: (id: string): Repo | undefined => {
-		const db = getDatabase();
-		return db.prepare('SELECT * FROM repos WHERE id = ?').get(id) as
-			| Repo
-			| undefined;
-	},
-
-	getRepoByRemoteUrl: (remoteUrl: string): Repo | undefined => {
-		const db = getDatabase();
-		return db
-			.prepare('SELECT * FROM repos WHERE remote_url = ?')
-			.get(remoteUrl) as Repo | undefined;
-	},
-
-	getRepoByPath: (path: string): Repo | undefined => {
-		const db = getDatabase();
-		const repoPath = db
-			.prepare('SELECT * FROM repo_paths WHERE path = ?')
-			.get(path) as RepoPath | undefined;
-		if (!repoPath) return undefined;
-		return db
-			.prepare('SELECT * FROM repos WHERE id = ?')
-			.get(repoPath.repo_id) as Repo | undefined;
-	},
-
-	createOrGetRepoFromPath: async (
-		path: string,
-	): Promise<{ repo: Repo; repoPath: RepoPath; isNew: boolean }> => {
-		const service = makeRepoService();
-		return Effect.runPromise(service.createOrGetRepoFromPath(path));
-	},
-
-	deleteRepo: (id: string): void => {
-		const db = getDatabase();
-		db.prepare('DELETE FROM repos WHERE id = ?').run(id);
-	},
-
-	deleteRepoPath: (pathId: string): void => {
-		const db = getDatabase();
-		const repoPath = db
-			.prepare('SELECT * FROM repo_paths WHERE id = ?')
-			.get(pathId) as RepoPath | undefined;
-		if (!repoPath) return;
-
-		db.prepare('DELETE FROM repo_paths WHERE id = ?').run(pathId);
-
-		const otherPaths = db
-			.prepare(
-				'SELECT COUNT(*) as count FROM repo_paths WHERE repo_id = ?',
-			)
-			.get(repoPath.repo_id) as { count: number };
-		if (otherPaths.count === 0) {
-			db.prepare('DELETE FROM repos WHERE id = ?').run(repoPath.repo_id);
-		}
-	},
-
-	updateBaseBranch: (repoId: string, baseBranch: string): void => {
-		const db = getDatabase();
-		db.prepare('UPDATE repos SET base_branch = ? WHERE id = ?').run(
-			baseBranch,
-			repoId,
-		);
-	},
-
-	getOrCreateSession: async (
-		repoId: string,
-		path: string,
-	): Promise<ReviewSession> => {
-		const service = makeRepoService();
-		return Effect.runPromise(service.getOrCreateSession(repoId, path));
-	},
-
-	getSessionById: (id: string): ReviewSession | undefined => {
-		const db = getDatabase();
-		return db
-			.prepare('SELECT * FROM review_sessions WHERE id = ?')
-			.get(id) as ReviewSession | undefined;
-	},
-
-	getSessionWithRepo: (
-		sessionId: string,
-	): { session: ReviewSession; repo: RepoWithPath } | undefined => {
-		const db = getDatabase();
-		const session = db
-			.prepare('SELECT * FROM review_sessions WHERE id = ?')
-			.get(sessionId) as ReviewSession | undefined;
-		if (!session) return undefined;
-
-		const repo = db
-			.prepare('SELECT * FROM repos WHERE id = ?')
-			.get(session.repo_id) as Repo | undefined;
-		if (!repo) return undefined;
-
-		const paths = db
-			.prepare(
-				'SELECT * FROM repo_paths WHERE repo_id = ? ORDER BY last_accessed_at DESC',
-			)
-			.all(repo.id) as RepoPath[];
-
-		return { session, repo: { ...repo, paths } };
-	},
-
-	getRepoPaths: (repoId: string): RepoPath[] => {
-		const db = getDatabase();
-		return db
-			.prepare(
-				'SELECT * FROM repo_paths WHERE repo_id = ? ORDER BY last_accessed_at DESC',
-			)
-			.all(repoId) as RepoPath[];
-	},
-
-	updateSessionBaseBranch: (
-		sessionId: string,
-		baseBranch: string | null,
-	): void => {
-		const db = getDatabase();
-		db.prepare(
-			'UPDATE review_sessions SET base_branch = ? WHERE id = ?',
-		).run(baseBranch, sessionId);
-	},
-};

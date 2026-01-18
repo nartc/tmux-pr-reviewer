@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { useFetcher } from 'react-router';
 import { toast } from 'sonner';
-import { useAsyncState } from './async-state.js';
+import { useAsyncState } from './async-state';
 
 interface UseAsyncActionOptions<T> {
 	onSuccess?: (data: T) => void;

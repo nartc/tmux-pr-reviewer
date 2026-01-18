@@ -1,7 +1,7 @@
 import { IconButton, Text, Tooltip } from '@radix-ui/themes';
 import { useState, type ReactNode } from 'react';
 import { VscChevronLeft, VscChevronRight } from 'react-icons/vsc';
-import { GlobalLoadingBar } from './GlobalLoadingBar.js';
+import { GlobalLoadingBar } from './GlobalLoadingBar';
 
 interface LayoutProps {
 	children: ReactNode;

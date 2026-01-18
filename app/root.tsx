@@ -8,12 +8,12 @@ import {
 	Scripts,
 	ScrollRestoration,
 } from 'react-router';
-
 import { Toaster } from 'sonner';
 import type { Route } from './+types/root';
+
 import './app.css';
-import { AsyncStateProvider } from './lib/async-state.js';
-import { densityToScaling, ThemeProvider, useTheme } from './lib/theme.js';
+import { AsyncStateProvider } from './lib/async-state';
+import { densityToScaling, ThemeProvider, useTheme } from './lib/theme';
 
 export const links: Route.LinksFunction = () => [
 	{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -75,7 +75,7 @@ function AppContent() {
 			radius="medium"
 			scaling={densityToScaling(density)}
 			panelBackground="translucent"
-			className="!bg-transparent"
+			className="bg-transparent!"
 		>
 			<AsyncStateProvider>
 				<Outlet />

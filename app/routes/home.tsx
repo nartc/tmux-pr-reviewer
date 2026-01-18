@@ -1,11 +1,14 @@
 import { Dialog } from '@radix-ui/themes';
+import { Effect } from 'effect';
 import { useCallback, useState } from 'react';
 import { VscAdd, VscArrowRight, VscRepo, VscTrash } from 'react-icons/vsc';
 import { Form, redirect, useFetcher, useLoaderData } from 'react-router';
+
 import { EmptyRepos } from '../components/EmptyStates';
 import { SimpleLayout } from '../components/Layout';
 import { RepoPicker } from '../components/RepoPicker';
-import { repoService, type RepoWithPath } from '../services/repo.service';
+import { runtime } from '../lib/effect-runtime';
+import { RepoService, type RepoWithPath } from '../services/repo.service';
 import type { Route } from './+types/home';
 
 export function meta() {
@@ -16,58 +19,73 @@ export function meta() {
 }
 
 export async function loader() {
-	const repos = repoService.getAllRepos();
-	return { repos };
+	return runtime.runPromise(
+		Effect.gen(function* () {
+			const repo = yield* RepoService;
+			const repos = yield* repo.getAllRepos;
+			return { repos };
+		}),
+	);
 }
 
 export async function action({ request }: Route.ActionArgs) {
 	const formData = await request.formData();
 	const intent = formData.get('intent');
 
-	if (intent === 'add') {
-		const path = formData.get('path') as string;
-		if (!path) {
-			return { error: 'Path is required' };
-		}
+	return runtime.runPromise(
+		Effect.gen(function* () {
+			const repo = yield* RepoService;
 
-		try {
-			const { repo } = await repoService.createOrGetRepoFromPath(path);
-			// Get or create session and redirect to review page
-			const session = await repoService.getOrCreateSession(repo.id, path);
-			return redirect(
-				`/review/${session.id}?path=${encodeURIComponent(path)}`,
-			);
-		} catch (error) {
-			return {
-				error:
-					error instanceof Error
-						? error.message
-						: 'Failed to add repository',
-			};
-		}
-	}
+			if (intent === 'add') {
+				const path = formData.get('path') as string;
+				if (!path) {
+					return { error: 'Path is required' };
+				}
 
-	if (intent === 'delete') {
-		const repoId = formData.get('repoId') as string;
-		if (repoId) {
-			repoService.deleteRepo(repoId);
-		}
-		return { success: true };
-	}
+				const { repo: createdRepo } =
+					yield* repo.createOrGetRepoFromPath(path);
+				// Get or create session and redirect to review page
+				const session = yield* repo.getOrCreateSession(
+					createdRepo.id,
+					path,
+				);
+				return redirect(
+					`/review/${session.id}?path=${encodeURIComponent(path)}`,
+				);
+			}
 
-	if (intent === 'open') {
-		const repoId = formData.get('repoId') as string;
-		const path = formData.get('path') as string;
-		if (repoId && path) {
-			const session = await repoService.getOrCreateSession(repoId, path);
-			return redirect(
-				`/review/${session.id}?path=${encodeURIComponent(path)}`,
-			);
-		}
-		return { error: 'Missing repo or path' };
-	}
+			if (intent === 'delete') {
+				const repoId = formData.get('repoId') as string;
+				if (repoId) {
+					yield* repo.deleteRepo(repoId);
+				}
+				return { success: true };
+			}
 
-	return { error: 'Unknown action' };
+			if (intent === 'open') {
+				const repoId = formData.get('repoId') as string;
+				const path = formData.get('path') as string;
+				if (repoId && path) {
+					const session = yield* repo.getOrCreateSession(
+						repoId,
+						path,
+					);
+					return redirect(
+						`/review/${session.id}?path=${encodeURIComponent(path)}`,
+					);
+				}
+				return { error: 'Missing repo or path' };
+			}
+
+			return { error: 'Unknown action' };
+		}).pipe(
+			Effect.catchAll((error) =>
+				Effect.succeed({
+					error: String(error) || 'Failed to perform action',
+				}),
+			),
+		),
+	);
 }
 
 export default function Home() {
