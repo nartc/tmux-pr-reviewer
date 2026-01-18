@@ -161,11 +161,8 @@ export function Layout({
 				{leftSidebar && (
 					<aside
 						aria-label="File explorer"
-						className="relative shrink-0 flex flex-col border-r"
-						style={{
-							width: leftWidth,
-							borderColor: 'var(--color-border)',
-						}}
+						className="relative shrink-0 flex flex-col border-r border-theme"
+						style={{ width: leftWidth }}
 					>
 						<div className="flex-1 overflow-y-auto">
 							{leftSidebar}
@@ -184,11 +181,8 @@ export function Layout({
 				{rightSidebar && (
 					<aside
 						aria-label="Comment queue"
-						className="relative shrink-0 overflow-y-auto border-l"
-						style={{
-							width: rightWidth,
-							borderColor: 'var(--color-border)',
-						}}
+						className="relative shrink-0 overflow-y-auto border-l border-theme"
+						style={{ width: rightWidth }}
 					>
 						<ResizeHandle
 							onResize={handleRightResize}

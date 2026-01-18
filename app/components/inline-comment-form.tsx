@@ -83,15 +83,11 @@ export function InlineCommentForm({
 	return (
 		<div
 			data-comment-form
-			className="rounded-lg shadow-lg p-3 box-border animate-slide-in"
-			style={{
-				backgroundColor: 'var(--color-surface)',
-				border: '1px solid var(--color-border)',
-			}}
+			className="rounded-lg shadow-lg p-3 box-border animate-slide-in bg-theme-surface border border-theme"
 		>
 			{/* Header */}
 			<div className="flex items-center justify-between mb-2">
-				<Text size="1" style={{ color: 'var(--color-text-secondary)' }}>
+				<Text size="1" className="text-theme-secondary">
 					{lineInfo}
 				</Text>
 				<Tooltip content="Close (Esc)">
@@ -117,10 +113,7 @@ export function InlineCommentForm({
 				rows={3}
 				autoFocus
 				aria-label="Comment text"
-				style={{
-					backgroundColor: 'var(--color-bg)',
-					borderColor: 'var(--color-border)',
-				}}
+				className="bg-theme-bg border-theme"
 			/>
 
 			{/* Actions */}

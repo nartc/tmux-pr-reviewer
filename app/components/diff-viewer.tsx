@@ -16,7 +16,15 @@ import {
 	Tooltip,
 } from '@radix-ui/themes';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	memo,
+	useCallback,
+	useEffect,
+	useMemo,
+	useReducer,
+	useRef,
+	useState,
+} from 'react';
 import {
 	VscAdd,
 	VscChevronDown,
@@ -61,38 +69,14 @@ const HydrationLoadingState = (
 // Skeleton for FileDiff while it's mounting
 const FileDiffSkeleton = (
 	<div className="p-4 space-y-3">
-		<div
-			className="h-4 w-3/4 rounded animate-pulse"
-			style={{ backgroundColor: 'var(--color-surface-hover)' }}
-		/>
-		<div
-			className="h-4 w-full rounded animate-pulse"
-			style={{ backgroundColor: 'var(--color-surface-hover)' }}
-		/>
-		<div
-			className="h-4 w-5/6 rounded animate-pulse"
-			style={{ backgroundColor: 'var(--color-surface-hover)' }}
-		/>
-		<div
-			className="h-4 w-full rounded animate-pulse"
-			style={{ backgroundColor: 'var(--color-surface-hover)' }}
-		/>
-		<div
-			className="h-4 w-2/3 rounded animate-pulse"
-			style={{ backgroundColor: 'var(--color-surface-hover)' }}
-		/>
-		<div
-			className="h-4 w-full rounded animate-pulse"
-			style={{ backgroundColor: 'var(--color-surface-hover)' }}
-		/>
-		<div
-			className="h-4 w-4/5 rounded animate-pulse"
-			style={{ backgroundColor: 'var(--color-surface-hover)' }}
-		/>
-		<div
-			className="h-4 w-full rounded animate-pulse"
-			style={{ backgroundColor: 'var(--color-surface-hover)' }}
-		/>
+		<div className="h-4 w-3/4 rounded animate-pulse bg-theme-surface-hover" />
+		<div className="h-4 w-full rounded animate-pulse bg-theme-surface-hover" />
+		<div className="h-4 w-5/6 rounded animate-pulse bg-theme-surface-hover" />
+		<div className="h-4 w-full rounded animate-pulse bg-theme-surface-hover" />
+		<div className="h-4 w-2/3 rounded animate-pulse bg-theme-surface-hover" />
+		<div className="h-4 w-full rounded animate-pulse bg-theme-surface-hover" />
+		<div className="h-4 w-4/5 rounded animate-pulse bg-theme-surface-hover" />
+		<div className="h-4 w-full rounded animate-pulse bg-theme-surface-hover" />
 	</div>
 );
 
@@ -155,6 +139,84 @@ interface CommentFormData {
 	isFileComment?: boolean;
 }
 
+// Reducer state and actions for DiffViewerClient
+interface DiffViewerState {
+	commentForm: CommentFormData | null;
+	selectedLines: Map<string, SelectedLineRange | null>;
+	expandedFiles: Set<string>;
+	isInitialized: boolean;
+	loadedFiles: Set<string>;
+}
+
+type DiffViewerAction =
+	| { type: 'SET_COMMENT_FORM'; payload: CommentFormData | null }
+	| {
+			type: 'SET_SELECTED_LINES';
+			payload: Map<string, SelectedLineRange | null>;
+	  }
+	| { type: 'SET_EXPANDED_FILES'; payload: Set<string> }
+	| { type: 'TOGGLE_FILE_EXPANDED'; payload: string }
+	| { type: 'COLLAPSE_ALL' }
+	| { type: 'SET_IS_INITIALIZED'; payload: boolean }
+	| { type: 'SET_LOADED_FILES'; payload: Set<string> }
+	| { type: 'MARK_FILE_LOADED'; payload: string }
+	| { type: 'CLOSE_COMMENT' }
+	| { type: 'RESET_FOR_NEW_DIFF' };
+
+function diffViewerReducer(
+	state: DiffViewerState,
+	action: DiffViewerAction,
+): DiffViewerState {
+	switch (action.type) {
+		case 'SET_COMMENT_FORM':
+			return { ...state, commentForm: action.payload };
+		case 'SET_SELECTED_LINES':
+			return { ...state, selectedLines: action.payload };
+		case 'SET_EXPANDED_FILES':
+			return { ...state, expandedFiles: action.payload };
+		case 'TOGGLE_FILE_EXPANDED': {
+			const next = new Set(state.expandedFiles);
+			if (next.has(action.payload)) {
+				next.delete(action.payload);
+			} else {
+				next.add(action.payload);
+			}
+			return { ...state, expandedFiles: next };
+		}
+		case 'COLLAPSE_ALL':
+			return { ...state, expandedFiles: new Set() };
+		case 'SET_IS_INITIALIZED':
+			return { ...state, isInitialized: action.payload };
+		case 'SET_LOADED_FILES':
+			return { ...state, loadedFiles: action.payload };
+		case 'MARK_FILE_LOADED': {
+			if (state.loadedFiles.has(action.payload)) return state;
+			const next = new Set(state.loadedFiles);
+			next.add(action.payload);
+			return { ...state, loadedFiles: next };
+		}
+		case 'CLOSE_COMMENT':
+			return { ...state, commentForm: null, selectedLines: new Map() };
+		case 'RESET_FOR_NEW_DIFF':
+			return {
+				...state,
+				isInitialized: false,
+				expandedFiles: new Set(),
+				loadedFiles: new Set(),
+			};
+		default:
+			return state;
+	}
+}
+
+const initialDiffViewerState: DiffViewerState = {
+	commentForm: null,
+	selectedLines: new Map(),
+	expandedFiles: new Set(),
+	isInitialized: false,
+	loadedFiles: new Set(),
+};
+
 interface DiffViewerProps {
 	rawDiff: string;
 	className?: string;
@@ -192,19 +254,18 @@ function DiffViewerClient({
 	const { resolvedTheme } = useTheme();
 	const parentRef = useRef<HTMLDivElement>(null);
 	const fileRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-	const [commentForm, setCommentForm] = useState<CommentFormData | null>(
-		null,
+
+	const [state, dispatch] = useReducer(
+		diffViewerReducer,
+		initialDiffViewerState,
 	);
-	const [selectedLines, setSelectedLines] = useState<
-		Map<string, SelectedLineRange | null>
-	>(new Map());
-
-	// Track which files are expanded (show FileDiff) vs collapsed (header only)
-	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
-	const [isInitialized, setIsInitialized] = useState(false);
-
-	// Track which FileDiff components have finished loading
-	const [loadedFiles, setLoadedFiles] = useState<Set<string>>(new Set());
+	const {
+		commentForm,
+		selectedLines,
+		expandedFiles,
+		isInitialized,
+		loadedFiles,
+	} = state;
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const [DiffComponents, setDiffComponents] = useState<{
@@ -264,10 +325,13 @@ function DiffViewerClient({
 
 			const hoveredLine = getHoveredLine();
 			if (hoveredLine) {
-				setCommentForm({
-					filePath,
-					lineStart: hoveredLine.lineNumber,
-					side: hoveredLine.side,
+				dispatch({
+					type: 'SET_COMMENT_FORM',
+					payload: {
+						filePath,
+						lineStart: hoveredLine.lineNumber,
+						side: hoveredLine.side,
+					},
 				});
 			}
 		},
@@ -290,12 +354,18 @@ function DiffViewerClient({
 					}, 100);
 				}
 
-				setSelectedLines((prev) => new Map(prev).set(filePath, range));
-				setCommentForm({
-					filePath,
-					lineStart: Math.min(range.start, range.end),
-					lineEnd: Math.max(range.start, range.end),
-					side: range.side || 'additions',
+				dispatch({
+					type: 'SET_SELECTED_LINES',
+					payload: new Map(selectedLines).set(filePath, range),
+				});
+				dispatch({
+					type: 'SET_COMMENT_FORM',
+					payload: {
+						filePath,
+						lineStart: Math.min(range.start, range.end),
+						lineEnd: Math.max(range.start, range.end),
+						side: range.side || 'additions',
+					},
 				});
 			}
 		},
@@ -303,21 +373,27 @@ function DiffViewerClient({
 	);
 
 	const handleFileComment = useCallback((filePath: string) => {
-		setCommentForm({
-			filePath,
-			side: 'additions',
-			isFileComment: true,
+		dispatch({
+			type: 'SET_COMMENT_FORM',
+			payload: {
+				filePath,
+				side: 'additions',
+				isFileComment: true,
+			},
 		});
 	}, []);
 
 	const handleHunkComment = useCallback(
 		(filePath: string, hunk: Hunk, _hunkIndex: number) => {
 			const { start, end } = getActualChangedLineRange(hunk);
-			setCommentForm({
-				filePath,
-				lineStart: start,
-				lineEnd: end,
-				side: 'additions',
+			dispatch({
+				type: 'SET_COMMENT_FORM',
+				payload: {
+					filePath,
+					lineStart: start,
+					lineEnd: end,
+					side: 'additions',
+				},
 			});
 			setTimeout(() => {
 				const commentFormEl = document.querySelector(
@@ -333,8 +409,7 @@ function DiffViewerClient({
 	);
 
 	const handleCloseComment = useCallback(() => {
-		setCommentForm(null);
-		setSelectedLines(new Map());
+		dispatch({ type: 'CLOSE_COMMENT' });
 	}, []);
 
 	// Memoize parsing - only re-parse when rawDiff changes
@@ -373,16 +448,14 @@ function DiffViewerClient({
 					allFiles[i].name || allFiles[i].prevName || `file-${i}`;
 				initialExpanded.add(filePath);
 			}
-			setExpandedFiles(initialExpanded);
-			setIsInitialized(true);
+			dispatch({ type: 'SET_EXPANDED_FILES', payload: initialExpanded });
+			dispatch({ type: 'SET_IS_INITIALIZED', payload: true });
 		}
 	}, [allFiles, isInitialized]);
 
 	// Reset state when rawDiff changes (different PR)
 	useEffect(() => {
-		setIsInitialized(false);
-		setExpandedFiles(new Set());
-		setLoadedFiles(new Set());
+		dispatch({ type: 'RESET_FOR_NEW_DIFF' });
 	}, [rawDiff]);
 
 	// Virtualizer for file list
@@ -406,20 +479,12 @@ function DiffViewerClient({
 
 	// Toggle file expanded state
 	const toggleFileExpanded = useCallback((filePath: string) => {
-		setExpandedFiles((prev) => {
-			const next = new Set(prev);
-			if (next.has(filePath)) {
-				next.delete(filePath);
-			} else {
-				next.add(filePath);
-			}
-			return next;
-		});
+		dispatch({ type: 'TOGGLE_FILE_EXPANDED', payload: filePath });
 	}, []);
 
 	// Collapse all files
 	const collapseAll = useCallback(() => {
-		setExpandedFiles(new Set());
+		dispatch({ type: 'COLLAPSE_ALL' });
 	}, []);
 
 	// Scroll to file and expand it
@@ -428,17 +493,17 @@ function DiffViewerClient({
 			const index = filePathToIndex.get(filePath);
 			if (index !== undefined) {
 				// Expand the file if collapsed
-				setExpandedFiles((prev) => {
-					if (prev.has(filePath)) return prev;
-					const next = new Set(prev);
-					next.add(filePath);
-					return next;
-				});
+				if (!expandedFiles.has(filePath)) {
+					dispatch({
+						type: 'TOGGLE_FILE_EXPANDED',
+						payload: filePath,
+					});
+				}
 				// Scroll to the file
 				virtualizer.scrollToIndex(index, { align: 'start' });
 			}
 		},
-		[filePathToIndex, virtualizer],
+		[filePathToIndex, virtualizer, expandedFiles],
 	);
 
 	// Expose scrollToFile to parent
@@ -455,12 +520,7 @@ function DiffViewerClient({
 
 	// Mark file as loaded when FileDiff finishes rendering
 	const markFileLoaded = useCallback((filePath: string) => {
-		setLoadedFiles((prev) => {
-			if (prev.has(filePath)) return prev;
-			const next = new Set(prev);
-			next.add(filePath);
-			return next;
-		});
+		dispatch({ type: 'MARK_FILE_LOADED', payload: filePath });
 	}, []);
 
 	if (!DiffComponents) {
@@ -472,13 +532,7 @@ function DiffViewerClient({
 	return (
 		<div className={className}>
 			{/* Header with Collapse All button */}
-			<div
-				className="sticky top-0 z-20 flex items-center justify-between px-4 py-2"
-				style={{
-					backgroundColor: 'var(--color-background)',
-					borderBottom: '1px solid var(--color-border)',
-				}}
-			>
+			<div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-theme-bg theme-divider-bottom">
 				<Text size="2" weight="medium">
 					{allFiles.length} file{allFiles.length !== 1 ? 's' : ''}{' '}
 					changed
@@ -551,15 +605,9 @@ function DiffViewerClient({
 								key={virtualRow.key}
 								data-index={virtualRow.index}
 								ref={virtualizer.measureElement}
-								className="file-diff-container"
+								className="file-diff-container absolute top-0 left-0 w-full border-b border-theme"
 								style={{
-									position: 'absolute',
-									top: 0,
-									left: 0,
-									width: '100%',
 									transform: `translateY(${virtualRow.start}px)`,
-									borderBottom:
-										'1px solid var(--color-border)',
 								}}
 								data-file-path={filePath}
 							>
@@ -803,33 +851,15 @@ const StickyFileHeader = memo(function StickyFileHeader({
 	const getIcon = (type: ChangeTypes) => {
 		switch (type) {
 			case 'new':
-				return (
-					<VscDiffAdded
-						className="w-5 h-5"
-						style={{ color: 'var(--color-success-green)' }}
-					/>
-				);
+				return <VscDiffAdded className="w-5 h-5 text-theme-success" />;
 			case 'deleted':
-				return (
-					<VscDiffRemoved
-						className="w-5 h-5"
-						style={{ color: 'var(--color-danger-red)' }}
-					/>
-				);
+				return <VscDiffRemoved className="w-5 h-5 text-theme-danger" />;
 			case 'rename-pure':
 			case 'rename-changed':
-				return (
-					<VscFile
-						className="w-5 h-5"
-						style={{ color: 'var(--color-warning-amber)' }}
-					/>
-				);
+				return <VscFile className="w-5 h-5 text-theme-warning" />;
 			default:
 				return (
-					<VscDiffModified
-						className="w-5 h-5"
-						style={{ color: 'var(--color-accent)' }}
-					/>
+					<VscDiffModified className="w-5 h-5 text-theme-accent" />
 				);
 		}
 	};
@@ -875,11 +905,7 @@ const StickyFileHeader = memo(function StickyFileHeader({
 
 	return (
 		<div
-			className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 cursor-pointer hover:brightness-95"
-			style={{
-				backgroundColor: 'var(--color-surface)',
-				borderBottom: '1px solid var(--color-border)',
-			}}
+			className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 cursor-pointer hover:brightness-95 bg-theme-surface theme-divider-bottom"
 			onClick={onToggleExpanded}
 		>
 			<div className="flex items-center gap-3 min-w-0">
@@ -891,15 +917,9 @@ const StickyFileHeader = memo(function StickyFileHeader({
 					aria-expanded={isExpanded}
 				>
 					{isExpanded ? (
-						<VscChevronDown
-							className="w-4 h-4"
-							style={{ color: 'var(--color-text-muted)' }}
-						/>
+						<VscChevronDown className="w-4 h-4 text-theme-muted" />
 					) : (
-						<VscChevronRight
-							className="w-4 h-4"
-							style={{ color: 'var(--color-text-muted)' }}
-						/>
+						<VscChevronRight className="w-4 h-4 text-theme-muted" />
 					)}
 				</button>
 				{getIcon(changeType)}
@@ -912,11 +932,7 @@ const StickyFileHeader = memo(function StickyFileHeader({
 						{fileName}
 					</Text>
 					{fileDiff.prevName && fileDiff.prevName !== fileName && (
-						<Text
-							size="1"
-							className="shrink-0"
-							style={{ color: 'var(--color-text-muted)' }}
-						>
+						<Text size="1" className="shrink-0 text-theme-muted">
 							← {fileDiff.prevName}
 						</Text>
 					)}

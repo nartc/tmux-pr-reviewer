@@ -1,5 +1,5 @@
 import { Button, Checkbox, Text } from '@radix-ui/themes';
-import { useCallback, useState } from 'react';
+import { useCallback, useReducer } from 'react';
 import {
 	VscCheck,
 	VscChevronDown,
@@ -23,6 +23,62 @@ interface CommentQueueProps {
 	onProcessComments?: (commentIds: string[]) => Promise<string | null>;
 }
 
+interface CommentQueueState {
+	selectedIds: Set<string>;
+	queueExpanded: boolean;
+	stagedExpanded: boolean;
+	sentExpanded: boolean;
+	resolvedExpanded: boolean;
+	isProcessing: boolean;
+	processedText: string | null;
+}
+
+type CommentQueueAction =
+	| { type: 'SET_SELECTED_IDS'; payload: Set<string> }
+	| { type: 'TOGGLE_QUEUE_EXPANDED' }
+	| { type: 'TOGGLE_STAGED_EXPANDED' }
+	| { type: 'TOGGLE_SENT_EXPANDED' }
+	| { type: 'TOGGLE_RESOLVED_EXPANDED' }
+	| { type: 'SET_IS_PROCESSING'; payload: boolean }
+	| { type: 'SET_PROCESSED_TEXT'; payload: string | null }
+	| { type: 'CLEAR_SELECTION' };
+
+function commentQueueReducer(
+	state: CommentQueueState,
+	action: CommentQueueAction,
+): CommentQueueState {
+	switch (action.type) {
+		case 'SET_SELECTED_IDS':
+			return { ...state, selectedIds: action.payload };
+		case 'TOGGLE_QUEUE_EXPANDED':
+			return { ...state, queueExpanded: !state.queueExpanded };
+		case 'TOGGLE_STAGED_EXPANDED':
+			return { ...state, stagedExpanded: !state.stagedExpanded };
+		case 'TOGGLE_SENT_EXPANDED':
+			return { ...state, sentExpanded: !state.sentExpanded };
+		case 'TOGGLE_RESOLVED_EXPANDED':
+			return { ...state, resolvedExpanded: !state.resolvedExpanded };
+		case 'SET_IS_PROCESSING':
+			return { ...state, isProcessing: action.payload };
+		case 'SET_PROCESSED_TEXT':
+			return { ...state, processedText: action.payload };
+		case 'CLEAR_SELECTION':
+			return { ...state, selectedIds: new Set() };
+		default:
+			return state;
+	}
+}
+
+const initialState: CommentQueueState = {
+	selectedIds: new Set(),
+	queueExpanded: true,
+	stagedExpanded: true,
+	sentExpanded: false,
+	resolvedExpanded: false,
+	isProcessing: false,
+	processedText: null,
+};
+
 export function CommentQueue({
 	sessionId,
 	queuedComments,
@@ -33,17 +89,20 @@ export function CommentQueue({
 	onSendAllStaged,
 	onProcessComments,
 }: CommentQueueProps) {
-	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-	const [queueExpanded, setQueueExpanded] = useState(true);
-	const [stagedExpanded, setStagedExpanded] = useState(true);
-	const [sentExpanded, setSentExpanded] = useState(false);
-	const [resolvedExpanded, setResolvedExpanded] = useState(false);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [processedText, setProcessedText] = useState<string | null>(null);
+	const [state, dispatch] = useReducer(commentQueueReducer, initialState);
+	const {
+		selectedIds,
+		queueExpanded,
+		stagedExpanded,
+		sentExpanded,
+		resolvedExpanded,
+		isProcessing,
+		processedText,
+	} = state;
 
 	const { submit, isPending: isStaging } = useAsyncAction({
 		successMessage: 'Comments staged',
-		onSuccess: () => setSelectedIds(new Set()),
+		onSuccess: () => dispatch({ type: 'CLEAR_SELECTION' }),
 	});
 
 	const toggleSelect = (id: string) => {
@@ -53,14 +112,17 @@ export function CommentQueue({
 		} else {
 			newSelected.add(id);
 		}
-		setSelectedIds(newSelected);
+		dispatch({ type: 'SET_SELECTED_IDS', payload: newSelected });
 	};
 
 	const selectAll = () => {
 		if (selectedIds.size === queuedComments.length) {
-			setSelectedIds(new Set());
+			dispatch({ type: 'CLEAR_SELECTION' });
 		} else {
-			setSelectedIds(new Set(queuedComments.map((c) => c.id)));
+			dispatch({
+				type: 'SET_SELECTED_IDS',
+				payload: new Set(queuedComments.map((c) => c.id)),
+			});
 		}
 	};
 
@@ -77,18 +139,18 @@ export function CommentQueue({
 	const handleProcessStaged = useCallback(async () => {
 		if (!onProcessComments || stagedComments.length === 0) return;
 
-		setIsProcessing(true);
-		setProcessedText(null);
+		dispatch({ type: 'SET_IS_PROCESSING', payload: true });
+		dispatch({ type: 'SET_PROCESSED_TEXT', payload: null });
 
 		try {
 			const result = await onProcessComments(
 				stagedComments.map((c) => c.id),
 			);
 			if (result) {
-				setProcessedText(result);
+				dispatch({ type: 'SET_PROCESSED_TEXT', payload: result });
 			}
 		} finally {
-			setIsProcessing(false);
+			dispatch({ type: 'SET_IS_PROCESSING', payload: false });
 		}
 	}, [onProcessComments, stagedComments]);
 
@@ -102,22 +164,16 @@ export function CommentQueue({
 			{/* Queued Section */}
 			<div className="section-accordion section-queued">
 				<button
-					onClick={() => setQueueExpanded(!queueExpanded)}
+					onClick={() => dispatch({ type: 'TOGGLE_QUEUE_EXPANDED' })}
 					className="section-accordion-header"
 					aria-expanded={queueExpanded}
 					aria-controls="queued-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{queueExpanded ? (
-							<VscChevronDown
-								className="w-4 h-4"
-								style={{ color: 'var(--color-text-muted)' }}
-							/>
+							<VscChevronDown className="w-4 h-4 text-theme-muted" />
 						) : (
-							<VscChevronRight
-								className="w-4 h-4"
-								style={{ color: 'var(--color-text-muted)' }}
-							/>
+							<VscChevronRight className="w-4 h-4 text-theme-muted" />
 						)}
 						<Text size="2" weight="bold">
 							Queued
@@ -132,20 +188,11 @@ export function CommentQueue({
 					<div id="queued-comments-section" className="px-4 pb-4">
 						{queuedComments.length === 0 ? (
 							<div className="flex flex-col items-center py-6 gap-2">
-								<VscInbox
-									className="w-8 h-8"
-									style={{ color: 'var(--color-text-muted)' }}
-								/>
-								<Text
-									size="2"
-									style={{ color: 'var(--color-text-muted)' }}
-								>
+								<VscInbox className="w-8 h-8 text-theme-muted" />
+								<Text size="2" className="text-theme-muted">
 									No queued comments
 								</Text>
-								<Text
-									size="1"
-									style={{ color: 'var(--color-text-muted)' }}
-								>
+								<Text size="1" className="text-theme-muted">
 									Add comments from the diff viewer
 								</Text>
 							</div>
@@ -214,22 +261,16 @@ export function CommentQueue({
 			{/* Staged Section */}
 			<div className="section-accordion section-staged">
 				<button
-					onClick={() => setStagedExpanded(!stagedExpanded)}
+					onClick={() => dispatch({ type: 'TOGGLE_STAGED_EXPANDED' })}
 					className="section-accordion-header"
 					aria-expanded={stagedExpanded}
 					aria-controls="staged-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{stagedExpanded ? (
-							<VscChevronDown
-								className="w-4 h-4"
-								style={{ color: 'var(--color-text-muted)' }}
-							/>
+							<VscChevronDown className="w-4 h-4 text-theme-muted" />
 						) : (
-							<VscChevronRight
-								className="w-4 h-4"
-								style={{ color: 'var(--color-text-muted)' }}
-							/>
+							<VscChevronRight className="w-4 h-4 text-theme-muted" />
 						)}
 						<Text size="2" weight="bold">
 							Staged
@@ -247,16 +288,10 @@ export function CommentQueue({
 					<div id="staged-comments-section" className="px-4 pb-4">
 						{stagedComments.length === 0 ? (
 							<div className="flex flex-col items-center py-6 gap-2">
-								<Text
-									size="2"
-									style={{ color: 'var(--color-text-muted)' }}
-								>
+								<Text size="2" className="text-theme-muted">
 									No staged comments
 								</Text>
-								<Text
-									size="1"
-									style={{ color: 'var(--color-text-muted)' }}
-								>
+								<Text size="1" className="text-theme-muted">
 									Select and stage comments from the queue
 								</Text>
 							</div>
@@ -278,11 +313,7 @@ export function CommentQueue({
 									</Button>
 									<Button
 										size="2"
-										className="w-full btn-press"
-										style={{
-											backgroundColor:
-												'var(--color-success-green)',
-										}}
+										className="w-full btn-press bg-theme-success"
 										onClick={onSendAllStaged}
 									>
 										<VscSend aria-hidden="true" />
@@ -292,21 +323,11 @@ export function CommentQueue({
 
 								{/* Processed text output */}
 								{processedText && (
-									<div
-										className="mb-3 p-3 rounded-md text-sm whitespace-pre-wrap"
-										style={{
-											backgroundColor:
-												'var(--color-bg-secondary)',
-											border: '1px solid var(--color-border)',
-										}}
-									>
+									<div className="mb-3 p-3 rounded-md text-sm whitespace-pre-wrap bg-theme-bg-secondary border border-theme">
 										<Text
 											size="1"
 											weight="medium"
-											className="mb-2 block"
-											style={{
-												color: 'var(--color-text-secondary)',
-											}}
+											className="mb-2 block text-theme-secondary"
 										>
 											AI Processed Output
 										</Text>
@@ -334,22 +355,16 @@ export function CommentQueue({
 			{/* Sent Section */}
 			<div className="section-accordion section-sent">
 				<button
-					onClick={() => setSentExpanded(!sentExpanded)}
+					onClick={() => dispatch({ type: 'TOGGLE_SENT_EXPANDED' })}
 					className="section-accordion-header"
 					aria-expanded={sentExpanded}
 					aria-controls="sent-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{sentExpanded ? (
-							<VscChevronDown
-								className="w-4 h-4"
-								style={{ color: 'var(--color-text-muted)' }}
-							/>
+							<VscChevronDown className="w-4 h-4 text-theme-muted" />
 						) : (
-							<VscChevronRight
-								className="w-4 h-4"
-								style={{ color: 'var(--color-text-muted)' }}
-							/>
+							<VscChevronRight className="w-4 h-4 text-theme-muted" />
 						)}
 						<Text size="2" weight="bold">
 							Sent
@@ -364,16 +379,10 @@ export function CommentQueue({
 					<div id="sent-comments-section" className="px-4 pb-4">
 						{sentComments.length === 0 ? (
 							<div className="flex flex-col items-center py-6 gap-2">
-								<Text
-									size="2"
-									style={{ color: 'var(--color-text-muted)' }}
-								>
+								<Text size="2" className="text-theme-muted">
 									No sent comments
 								</Text>
-								<Text
-									size="1"
-									style={{ color: 'var(--color-text-muted)' }}
-								>
+								<Text size="1" className="text-theme-muted">
 									Sent comments will appear here
 								</Text>
 							</div>
@@ -399,23 +408,18 @@ export function CommentQueue({
 			{/* Resolved Section */}
 			<div className="section-accordion section-resolved flex-1 overflow-y-auto">
 				<button
-					onClick={() => setResolvedExpanded(!resolvedExpanded)}
-					className="section-accordion-header sticky top-0 z-10"
-					style={{ backgroundColor: 'var(--color-bg)' }}
+					onClick={() =>
+						dispatch({ type: 'TOGGLE_RESOLVED_EXPANDED' })
+					}
+					className="section-accordion-header sticky top-0 z-10 bg-theme-bg"
 					aria-expanded={resolvedExpanded}
 					aria-controls="resolved-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{resolvedExpanded ? (
-							<VscChevronDown
-								className="w-4 h-4"
-								style={{ color: 'var(--color-text-muted)' }}
-							/>
+							<VscChevronDown className="w-4 h-4 text-theme-muted" />
 						) : (
-							<VscChevronRight
-								className="w-4 h-4"
-								style={{ color: 'var(--color-text-muted)' }}
-							/>
+							<VscChevronRight className="w-4 h-4 text-theme-muted" />
 						)}
 						<Text size="2" weight="bold">
 							Resolved
@@ -430,16 +434,10 @@ export function CommentQueue({
 					<div id="resolved-comments-section" className="px-4 pb-4">
 						{resolvedComments.length === 0 ? (
 							<div className="flex flex-col items-center py-6 gap-2">
-								<Text
-									size="2"
-									style={{ color: 'var(--color-text-muted)' }}
-								>
+								<Text size="2" className="text-theme-muted">
 									No resolved comments
 								</Text>
-								<Text
-									size="1"
-									style={{ color: 'var(--color-text-muted)' }}
-								>
+								<Text size="1" className="text-theme-muted">
 									Comments resolved by agents appear here
 								</Text>
 							</div>

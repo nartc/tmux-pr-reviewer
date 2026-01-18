@@ -73,24 +73,16 @@ export function CommentCard({
 			{/* Header */}
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex items-center gap-2 min-w-0 flex-1">
-					<VscFile
-						className="w-3.5 h-3.5 shrink-0"
-						style={{ color: 'var(--color-text-muted)' }}
-					/>
+					<VscFile className="w-3.5 h-3.5 shrink-0 text-theme-muted" />
 					<Text
 						size="1"
 						weight="medium"
-						className="truncate"
-						style={{ color: 'var(--color-text-secondary)' }}
+						className="truncate text-theme-secondary"
 					>
 						{fileName}
 					</Text>
 					{lineInfo && (
-						<Text
-							size="1"
-							className="shrink-0"
-							style={{ color: 'var(--color-accent)' }}
-						>
+						<Text size="1" className="shrink-0 text-theme-accent">
 							{lineInfo}
 						</Text>
 					)}
@@ -150,10 +142,7 @@ export function CommentCard({
 						rows={3}
 						autoFocus
 						aria-label="Edit comment text"
-						style={{
-							backgroundColor: 'var(--color-bg)',
-							borderColor: 'var(--color-border)',
-						}}
+						className="bg-theme-bg border-theme"
 					/>
 					<div className="flex justify-end gap-1">
 						<Tooltip content="Cancel (Esc)">
@@ -190,18 +179,12 @@ export function CommentCard({
 					>
 						<Text
 							size="2"
-							className="whitespace-pre-wrap"
-							style={{ color: 'var(--color-text-primary)' }}
+							className="whitespace-pre-wrap text-theme-primary"
 						>
 							{comment.content}
 						</Text>
 						{!isExpanded && comment.content.length > 100 && (
-							<div
-								className="absolute bottom-0 left-0 right-0 h-6"
-								style={{
-									background: `linear-gradient(to top, var(--color-surface), transparent)`,
-								}}
-							/>
+							<div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-[var(--color-surface)] to-transparent" />
 						)}
 					</div>
 					{comment.content.length > 100 && (
@@ -217,26 +200,18 @@ export function CommentCard({
 					{showSentAt && comment.sent_at && (
 						<Text
 							size="1"
-							className="flex items-center gap-1"
-							style={{ color: 'var(--color-text-muted)' }}
+							className="flex items-center gap-1 text-theme-muted"
 						>
-							<VscCheck
-								className="w-3 h-3"
-								style={{ color: 'var(--color-success-green)' }}
-							/>
+							<VscCheck className="w-3 h-3 text-theme-success" />
 							Sent {new Date(comment.sent_at).toLocaleString()}
 						</Text>
 					)}
 					{showResolvedAt && comment.resolved_at && (
 						<Text
 							size="1"
-							className="flex items-center gap-1"
-							style={{ color: 'var(--color-text-muted)' }}
+							className="flex items-center gap-1 text-theme-muted"
 						>
-							<VscCheck
-								className="w-3 h-3"
-								style={{ color: 'var(--color-success-green)' }}
-							/>
+							<VscCheck className="w-3 h-3 text-theme-success" />
 							Resolved{' '}
 							{new Date(comment.resolved_at).toLocaleString()}
 							{comment.resolved_by &&

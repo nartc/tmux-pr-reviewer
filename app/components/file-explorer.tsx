@@ -295,10 +295,7 @@ export function FileExplorer({
 											aria-hidden="true"
 										/>
 										<FileIcon
-											className="w-4 h-4 shrink-0"
-											style={{
-												color: 'var(--color-text-muted)',
-											}}
+											className="w-4 h-4 shrink-0 text-theme-muted"
 											aria-hidden="true"
 										/>
 										<Text
@@ -310,7 +307,9 @@ export function FileExplorer({
 									</span>
 									<span className="flex items-center gap-1.5 shrink-0">
 										<span
-											className={statusPillClasses[file.status]}
+											className={
+												statusPillClasses[file.status]
+											}
 											aria-label={file.status}
 										>
 											{statusLabels[file.status]}
@@ -368,13 +367,7 @@ export function FileExplorer({
 			</div>
 
 			{/* Bottom summary */}
-			<div
-				className="px-4 py-2 text-xs border-t"
-				style={{
-					borderColor: 'var(--color-border)',
-					color: 'var(--color-text-muted)',
-				}}
-			>
+			<div className="px-4 py-2 text-xs border-t border-theme text-theme-muted">
 				{files.length} file{files.length !== 1 ? 's' : ''} changed
 			</div>
 		</div>

@@ -12,24 +12,17 @@ interface EmptyStateProps {
 function EmptyState({ icon, title, description, action }: EmptyStateProps) {
 	return (
 		<div className="flex flex-col items-center justify-center py-16 px-4 text-center gap-4 animate-fade-in-up">
-			<div
-				className="p-4 rounded-2xl"
-				style={{ backgroundColor: 'var(--color-surface-hover)' }}
-			>
-				<div style={{ color: 'var(--color-text-muted)' }}>{icon}</div>
+			<div className="p-4 rounded-2xl bg-theme-surface-hover">
+				<div className="text-theme-muted">{icon}</div>
 			</div>
 			<div className="space-y-2">
-				<Heading
-					size="4"
-					style={{ color: 'var(--color-text-primary)' }}
-				>
+				<Heading size="4" className="text-theme-primary">
 					{title}
 				</Heading>
 				{description && (
 					<Text
 						size="2"
-						className="max-w-sm block"
-						style={{ color: 'var(--color-text-secondary)' }}
+						className="max-w-sm block text-theme-secondary"
 					>
 						{description}
 					</Text>

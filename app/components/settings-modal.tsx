@@ -58,7 +58,7 @@ export function SettingsModal({
 						<Text
 							size="2"
 							weight="medium"
-							style={{ color: 'var(--color-text-primary)' }}
+							className="text-theme-primary"
 						>
 							Theme
 						</Text>
@@ -84,7 +84,7 @@ export function SettingsModal({
 						<Text
 							size="2"
 							weight="medium"
-							style={{ color: 'var(--color-text-primary)' }}
+							className="text-theme-primary"
 						>
 							Diff View
 						</Text>
@@ -109,7 +109,7 @@ export function SettingsModal({
 						<Text
 							size="2"
 							weight="medium"
-							style={{ color: 'var(--color-text-primary)' }}
+							className="text-theme-primary"
 						>
 							UI Density
 						</Text>
@@ -134,54 +134,31 @@ export function SettingsModal({
 						<Text
 							size="2"
 							weight="medium"
-							style={{ color: 'var(--color-text-primary)' }}
+							className="text-theme-primary"
 						>
 							Keyboard Shortcuts
 						</Text>
-						<div
-							className="flex flex-col gap-2 p-3 rounded-lg"
-							style={{ backgroundColor: 'var(--color-surface)' }}
-						>
+						<div className="flex flex-col gap-2 p-3 rounded-lg bg-theme-surface">
 							<div className="flex justify-between items-center">
-								<Text
-									size="2"
-									style={{
-										color: 'var(--color-text-secondary)',
-									}}
-								>
+								<Text size="2" className="text-theme-secondary">
 									Close modal / Cancel
 								</Text>
 								<Kbd>Esc</Kbd>
 							</div>
 							<div className="flex justify-between items-center">
-								<Text
-									size="2"
-									style={{
-										color: 'var(--color-text-secondary)',
-									}}
-								>
+								<Text size="2" className="text-theme-secondary">
 									Submit / Queue comment
 								</Text>
 								<Kbd>⌘ + Enter</Kbd>
 							</div>
 							<div className="flex justify-between items-center">
-								<Text
-									size="2"
-									style={{
-										color: 'var(--color-text-secondary)',
-									}}
-								>
+								<Text size="2" className="text-theme-secondary">
 									Navigate down
 								</Text>
 								<Kbd>j</Kbd>
 							</div>
 							<div className="flex justify-between items-center">
-								<Text
-									size="2"
-									style={{
-										color: 'var(--color-text-secondary)',
-									}}
-								>
+								<Text size="2" className="text-theme-secondary">
 									Navigate up
 								</Text>
 								<Kbd>k</Kbd>
@@ -190,12 +167,13 @@ export function SettingsModal({
 					</div>
 				</div>
 
-				<div
-					className="flex justify-end gap-2 mt-6 pt-4"
-					style={{ borderTop: '1px solid var(--color-border)' }}
-				>
+				<div className="flex justify-end gap-2 mt-6 pt-4 theme-divider">
 					<Dialog.Close>
-						<Button variant="soft" color="gray" className="btn-press">
+						<Button
+							variant="soft"
+							color="gray"
+							className="btn-press"
+						>
 							Cancel
 						</Button>
 					</Dialog.Close>
