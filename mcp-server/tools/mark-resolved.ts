@@ -22,7 +22,7 @@ export const markResolved = (
 		const db = yield* DbService;
 		const { comment_id } = args;
 
-		yield* Effect.logDebug('Marking comment as resolved', { comment_id });
+		yield* Effect.logInfo('mark_comment_resolved called', { comment_id });
 
 		// Verify comment exists
 		const comment = yield* db.queryOne<Comment>(

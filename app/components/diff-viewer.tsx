@@ -15,7 +15,7 @@ import {
 	Text,
 	Tooltip,
 } from '@radix-ui/themes';
-import { useVirtualizer } from '@tanstack/react-virtual';
+
 import {
 	memo,
 	useCallback,
@@ -82,10 +82,6 @@ const FileDiffSkeleton = (
 
 // Default number of files to expand initially
 const DEFAULT_EXPANDED_COUNT = 10;
-
-// Estimated heights for virtualization
-const COLLAPSED_HEIGHT = 52; // Header only
-const EXPANDED_HEIGHT_ESTIMATE = 400; // Initial estimate for expanded files
 
 /**
  * Calculate the actual changed line range within a hunk.
@@ -458,25 +454,6 @@ function DiffViewerClient({
 		dispatch({ type: 'RESET_FOR_NEW_DIFF' });
 	}, [rawDiff]);
 
-	// Virtualizer for file list
-	const virtualizer = useVirtualizer({
-		count: allFiles.length,
-		getScrollElement: () => parentRef.current,
-		estimateSize: useCallback(
-			(index: number) => {
-				const filePath =
-					allFiles[index]?.name ||
-					allFiles[index]?.prevName ||
-					`file-${index}`;
-				return expandedFiles.has(filePath)
-					? EXPANDED_HEIGHT_ESTIMATE
-					: COLLAPSED_HEIGHT;
-			},
-			[allFiles, expandedFiles],
-		),
-		overscan: 3,
-	});
-
 	// Toggle file expanded state
 	const toggleFileExpanded = useCallback((filePath: string) => {
 		dispatch({ type: 'TOGGLE_FILE_EXPANDED', payload: filePath });
@@ -490,20 +467,20 @@ function DiffViewerClient({
 	// Scroll to file and expand it
 	const scrollToFile = useCallback(
 		(filePath: string) => {
-			const index = filePathToIndex.get(filePath);
-			if (index !== undefined) {
-				// Expand the file if collapsed
-				if (!expandedFiles.has(filePath)) {
-					dispatch({
-						type: 'TOGGLE_FILE_EXPANDED',
-						payload: filePath,
-					});
-				}
-				// Scroll to the file
-				virtualizer.scrollToIndex(index, { align: 'start' });
+			// Expand the file if collapsed
+			if (!expandedFiles.has(filePath)) {
+				dispatch({
+					type: 'TOGGLE_FILE_EXPANDED',
+					payload: filePath,
+				});
+			}
+			// Scroll to the file element
+			const element = fileRefs.current.get(filePath);
+			if (element) {
+				element.scrollIntoView({ behavior: 'smooth', block: 'start' });
 			}
 		},
-		[filePathToIndex, virtualizer, expandedFiles],
+		[expandedFiles],
 	);
 
 	// Expose scrollToFile to parent
@@ -532,7 +509,13 @@ function DiffViewerClient({
 	return (
 		<div className={className}>
 			{/* Header with Collapse All button */}
-			<div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-theme-bg theme-divider-bottom">
+			<div
+				className="sticky top-0 z-20 flex items-center justify-between px-4 py-2"
+				style={{
+					backgroundColor: 'var(--color-bg)',
+					borderBottom: '1px solid var(--color-border)',
+				}}
+			>
 				<Text size="2" weight="medium">
 					{allFiles.length} file{allFiles.length !== 1 ? 's' : ''}{' '}
 					changed
@@ -550,156 +533,132 @@ function DiffViewerClient({
 				</Tooltip>
 			</div>
 
-			{/* Virtualized file list */}
+			{/* File list */}
 			<div
 				ref={parentRef}
 				className="overflow-auto"
 				style={{ height: 'calc(100% - 40px)' }}
 			>
-				<div
-					style={{
-						height: `${virtualizer.getTotalSize()}px`,
-						width: '100%',
-						position: 'relative',
-					}}
-				>
-					{virtualizer.getVirtualItems().map((virtualRow) => {
-						const fileDiff = allFiles[virtualRow.index];
-						const filePath =
-							fileDiff.name ||
-							fileDiff.prevName ||
-							`file-${virtualRow.index}`;
-						const isExpanded = expandedFiles.has(filePath);
-						const isLoaded = loadedFiles.has(filePath);
-						const fileSelectedLines =
-							selectedLines.get(filePath) || null;
-						const isCommentingOnThisFile =
-							commentForm?.filePath === filePath;
-						const isFileComment =
-							isCommentingOnThisFile &&
-							commentForm?.isFileComment;
+				{allFiles.map((fileDiff, index) => {
+					const filePath =
+						fileDiff.name || fileDiff.prevName || `file-${index}`;
+					const isExpanded = expandedFiles.has(filePath);
+					const isLoaded = loadedFiles.has(filePath);
+					const fileSelectedLines =
+						selectedLines.get(filePath) || null;
+					const isCommentingOnThisFile =
+						commentForm?.filePath === filePath;
+					const isFileComment =
+						isCommentingOnThisFile && commentForm?.isFileComment;
 
-						// Only create line annotations for non-file comments
-						const lineAnnotations =
-							isCommentingOnThisFile &&
-							!isFileComment &&
-							commentForm.lineStart !== undefined
-								? [
-										{
-											side: commentForm.side,
-											lineNumber:
-												commentForm.lineEnd ??
-												commentForm.lineStart,
-											metadata: {
-												type: 'comment-form' as const,
-												lineStart:
-													commentForm.lineStart,
-												lineEnd: commentForm.lineEnd,
-											},
+					// Only create line annotations for non-file comments
+					const lineAnnotations =
+						isCommentingOnThisFile &&
+						!isFileComment &&
+						commentForm.lineStart !== undefined
+							? [
+									{
+										side: commentForm.side,
+										lineNumber:
+											commentForm.lineEnd ??
+											commentForm.lineStart,
+										metadata: {
+											type: 'comment-form' as const,
+											lineStart: commentForm.lineStart,
+											lineEnd: commentForm.lineEnd,
 										},
-									]
-								: [];
+									},
+								]
+							: [];
 
-						return (
-							<div
-								key={virtualRow.key}
-								data-index={virtualRow.index}
-								ref={virtualizer.measureElement}
-								className="file-diff-container absolute top-0 left-0 w-full border-b border-theme"
-								style={{
-									transform: `translateY(${virtualRow.start}px)`,
-								}}
-								data-file-path={filePath}
-							>
-								<StickyFileHeader
-									fileDiff={fileDiff}
-									isExpanded={isExpanded}
-									onToggleExpanded={() =>
-										toggleFileExpanded(filePath)
-									}
-									onAddComment={() =>
-										handleFileComment(filePath)
-									}
-									onAddHunkComment={(hunk, hunkIndex) =>
-										handleHunkComment(
-											filePath,
-											hunk,
-											hunkIndex,
-										)
-									}
-								/>
+					return (
+						<div
+							key={filePath}
+							ref={(el) => setFileRef(filePath, el)}
+							className="file-diff-container"
+							style={{
+								borderBottom: '1px solid var(--color-border)',
+							}}
+							data-file-path={filePath}
+						>
+							<StickyFileHeader
+								fileDiff={fileDiff}
+								isExpanded={isExpanded}
+								onToggleExpanded={() =>
+									toggleFileExpanded(filePath)
+								}
+								onAddComment={() => handleFileComment(filePath)}
+								onAddHunkComment={(hunk, hunkIndex) =>
+									handleHunkComment(filePath, hunk, hunkIndex)
+								}
+							/>
 
-								{/* Only render FileDiff content when expanded */}
-								{isExpanded && (
-									<>
-										{/* File-level comment form - appears at top */}
-										{isFileComment && (
-											<InlineCommentForm
-												sessionId={sessionId}
-												filePath={filePath}
-												onClose={handleCloseComment}
-												onSendNow={
-													onSendNow
-														? (content) => {
-																onSendNow(
-																	content,
-																	filePath,
-																);
-																handleCloseComment();
-															}
-														: undefined
-												}
-											/>
-										)}
+							{/* Only render FileDiff content when expanded */}
+							{isExpanded && (
+								<>
+									{/* File-level comment form - appears at top */}
+									{isFileComment && (
+										<InlineCommentForm
+											sessionId={sessionId}
+											filePath={filePath}
+											onClose={handleCloseComment}
+											onSendNow={
+												onSendNow
+													? (content) => {
+															onSendNow(
+																content,
+																filePath,
+															);
+															handleCloseComment();
+														}
+													: undefined
+											}
+										/>
+									)}
 
-										{/* Show skeleton while FileDiff is loading */}
-										{!isLoaded && FileDiffSkeleton}
+									{/* Show skeleton while FileDiff is loading */}
+									{!isLoaded && FileDiffSkeleton}
 
-										<div
-											style={{
-												display: isLoaded
-													? 'block'
-													: 'none',
-											}}
-										>
-											<FileDiffWrapper
-												FileDiff={FileDiff}
-												fileDiff={fileDiff}
-												filePath={filePath}
-												fileSelectedLines={
-													fileSelectedLines
-												}
-												lineAnnotations={
-													lineAnnotations
-												}
-												defaultDiffOptions={
-													defaultDiffOptions
-												}
-												diffStyle={diffStyle}
-												resolvedTheme={resolvedTheme}
-												handleLineSelectionEnd={
-													handleLineSelectionEnd
-												}
-												handleAddComment={
-													handleAddComment
-												}
-												sessionId={sessionId}
-												commentForm={commentForm}
-												onSendNow={onSendNow}
-												handleCloseComment={
-													handleCloseComment
-												}
-												onLoaded={() =>
-													markFileLoaded(filePath)
-												}
-											/>
-										</div>
-									</>
-								)}
-							</div>
-						);
-					})}
-				</div>
+									<div
+										style={{
+											display: isLoaded
+												? 'block'
+												: 'none',
+										}}
+									>
+										<FileDiffWrapper
+											FileDiff={FileDiff}
+											fileDiff={fileDiff}
+											filePath={filePath}
+											fileSelectedLines={
+												fileSelectedLines
+											}
+											lineAnnotations={lineAnnotations}
+											defaultDiffOptions={
+												defaultDiffOptions
+											}
+											diffStyle={diffStyle}
+											resolvedTheme={resolvedTheme}
+											handleLineSelectionEnd={
+												handleLineSelectionEnd
+											}
+											handleAddComment={handleAddComment}
+											sessionId={sessionId}
+											commentForm={commentForm}
+											onSendNow={onSendNow}
+											handleCloseComment={
+												handleCloseComment
+											}
+											onLoaded={() =>
+												markFileLoaded(filePath)
+											}
+										/>
+									</div>
+								</>
+							)}
+						</div>
+					);
+				})}
 			</div>
 		</div>
 	);
@@ -905,7 +864,11 @@ const StickyFileHeader = memo(function StickyFileHeader({
 
 	return (
 		<div
-			className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 cursor-pointer hover:brightness-95 bg-theme-surface theme-divider-bottom"
+			className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 cursor-pointer hover:brightness-95"
+			style={{
+				backgroundColor: 'var(--color-surface)',
+				borderBottom: '1px solid var(--color-border)',
+			}}
 			onClick={onToggleExpanded}
 		>
 			<div className="flex items-center gap-3 min-w-0">

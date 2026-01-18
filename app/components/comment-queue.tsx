@@ -1,9 +1,19 @@
-import { Button, Checkbox, Text } from '@radix-ui/themes';
-import { useCallback, useReducer } from 'react';
 import {
+	Button,
+	Checkbox,
+	IconButton,
+	Kbd,
+	Text,
+	TextArea,
+	Tooltip,
+} from '@radix-ui/themes';
+import { useCallback, useReducer, useState } from 'react';
+import {
+	VscAdd,
 	VscCheck,
 	VscChevronDown,
 	VscChevronRight,
+	VscClose,
 	VscInbox,
 	VscLightbulb,
 	VscSend,
@@ -100,10 +110,72 @@ export function CommentQueue({
 		processedText,
 	} = state;
 
+	const [showGeneralForm, setShowGeneralForm] = useState(false);
+	const [generalContent, setGeneralContent] = useState('');
+
 	const { submit, isPending: isStaging } = useAsyncAction({
 		successMessage: 'Comments staged',
 		onSuccess: () => dispatch({ type: 'CLEAR_SELECTION' }),
 	});
+
+	const { submit: submitGeneral, isPending: isSubmittingGeneral } =
+		useAsyncAction({
+			successMessage: 'Comment queued',
+			onSuccess: () => {
+				setGeneralContent('');
+				setShowGeneralForm(false);
+			},
+		});
+
+	const handleAddGeneralComment = () => {
+		if (!generalContent.trim()) return;
+
+		const formData = new FormData();
+		formData.append('intent', 'create');
+		formData.append('sessionId', sessionId);
+		formData.append('filePath', '[general]');
+		formData.append('content', generalContent);
+
+		submitGeneral(formData, { method: 'POST', action: '/api/comments' });
+	};
+
+	const handleSendGeneralNow = () => {
+		if (!generalContent.trim() || !onSendNow) return;
+
+		// Create a temporary comment object for send now
+		const tempComment: Comment = {
+			id: crypto.randomUUID(),
+			session_id: sessionId,
+			file_path: '[general]',
+			content: generalContent,
+			status: 'queued',
+			created_at: new Date().toISOString(),
+			line_start: null,
+			line_end: null,
+			side: null,
+			sent_at: null,
+			resolved_at: null,
+			resolved_by: null,
+			delivered_at: null,
+		};
+
+		onSendNow(tempComment);
+		setGeneralContent('');
+		setShowGeneralForm(false);
+	};
+
+	const handleGeneralKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === 'Escape') {
+			setShowGeneralForm(false);
+			setGeneralContent('');
+		} else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+			if (e.shiftKey && onSendNow) {
+				handleSendGeneralNow();
+			} else {
+				handleAddGeneralComment();
+			}
+		}
+	};
 
 	const toggleSelect = (id: string) => {
 		const newSelected = new Set(selectedIds);
@@ -157,9 +229,85 @@ export function CommentQueue({
 	return (
 		<div className="h-full flex flex-col">
 			{/* Panel header */}
-			<div className="panel-header">
+			<div className="panel-header justify-between">
 				<span>Comments</span>
+				<Tooltip
+					content={showGeneralForm ? 'Close' : 'Add general comment'}
+				>
+					<IconButton
+						size="1"
+						variant="ghost"
+						onClick={() => setShowGeneralForm(!showGeneralForm)}
+						aria-label={
+							showGeneralForm ? 'Close' : 'Add general comment'
+						}
+						className="btn-press"
+					>
+						{showGeneralForm ? (
+							<VscClose aria-hidden="true" />
+						) : (
+							<VscAdd aria-hidden="true" />
+						)}
+					</IconButton>
+				</Tooltip>
 			</div>
+
+			{/* General comment form */}
+			{showGeneralForm && (
+				<div className="px-4 pb-4 border-b border-theme animate-slide-in">
+					<Text size="1" className="text-theme-secondary mb-2 block">
+						General comment (not tied to a specific line)
+					</Text>
+					<TextArea
+						value={generalContent}
+						onChange={(e) => setGeneralContent(e.target.value)}
+						onKeyDown={handleGeneralKeyDown}
+						placeholder="Add a general comment..."
+						size="2"
+						rows={3}
+						autoFocus
+						aria-label="General comment text"
+						className="bg-theme-bg border-theme"
+					/>
+					<div className="flex items-center justify-end mt-2 gap-2">
+						<Button
+							variant="ghost"
+							size="1"
+							onClick={() => {
+								setShowGeneralForm(false);
+								setGeneralContent('');
+							}}
+							className="btn-press"
+						>
+							Cancel <Kbd size="1">Esc</Kbd>
+						</Button>
+						{onSendNow && (
+							<Button
+								size="1"
+								color="green"
+								onClick={handleSendGeneralNow}
+								disabled={
+									!generalContent.trim() ||
+									isSubmittingGeneral
+								}
+								className="btn-press"
+							>
+								Send Now <Kbd size="1">⌘⇧↵</Kbd>
+							</Button>
+						)}
+						<Button
+							size="1"
+							onClick={handleAddGeneralComment}
+							disabled={
+								!generalContent.trim() || isSubmittingGeneral
+							}
+							className="btn-press"
+						>
+							Queue <Kbd size="1">⌘↵</Kbd>
+						</Button>
+					</div>
+				</div>
+			)}
 
 			{/* Queued Section */}
 			<div className="section-accordion section-queued">

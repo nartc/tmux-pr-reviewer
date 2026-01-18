@@ -7,14 +7,14 @@ import { dirname, join } from 'path';
 
 const mcpServerPath = join(process.cwd(), 'dist', 'mcp-server', 'index.js');
 
-// MCP configuration for pr-reviewer (standard format)
+// MCP configuration for pr-reviewer (standard format - Claude Desktop, Cline, etc.)
 const mcpConfig = {
 	command: 'node',
 	args: [mcpServerPath],
 };
 
-// MCP configuration for OpenCode (uses different format)
-const opencodeMcpConfig = {
+// MCP configuration for Claude Code CLI / OpenCode (uses type + command array format)
+const claudeCodeMcpConfig = {
 	type: 'local',
 	command: ['node', mcpServerPath],
 };
@@ -34,19 +34,28 @@ const agents = [
 		configKey: 'mcpServers',
 		detected: false,
 	},
+	// Claude Code CLI (macOS) - uses ~/.claude/settings.json
+	{
+		name: 'Claude Code (macOS)',
+		configPath: join(homedir(), '.claude', 'settings.json'),
+		configKey: 'mcpServers',
+		configFormat: 'claude-code', // Uses type + command array format
+		detected: false,
+	},
 	// Claude Code CLI (Linux)
 	{
 		name: 'Claude Code (Linux)',
 		configPath: join(homedir(), '.config', 'claude', 'config.json'),
 		configKey: 'mcpServers',
+		configFormat: 'claude-code', // Uses type + command array format
 		detected: false,
 	},
-	// OpenCode (uses different format)
+	// OpenCode (uses same format as Claude Code)
 	{
 		name: 'OpenCode',
 		configPath: join(homedir(), '.config', 'opencode', 'opencode.json'),
 		configKey: 'mcp',
-		configFormat: 'opencode', // Special format
+		configFormat: 'claude-code', // Uses type + command array format
 		detected: false,
 	},
 	// Cline (VS Code extension)
@@ -131,18 +140,18 @@ for (const agent of agents) {
 
 			// Choose the right config format based on agent
 			const configToUse =
-				agent.configFormat === 'opencode'
-					? opencodeMcpConfig
+				agent.configFormat === 'claude-code'
+					? claudeCodeMcpConfig
 					: mcpConfig;
 
 			const existingConfig = config[agent.configKey]['pr-reviewer'];
 			if (existingConfig) {
 				// Check if it's already correctly configured
 				const isConfigured =
-					agent.configFormat === 'opencode'
+					agent.configFormat === 'claude-code'
 						? existingConfig.type === 'local' &&
 							JSON.stringify(existingConfig.command) ===
-								JSON.stringify(opencodeMcpConfig.command)
+								JSON.stringify(claudeCodeMcpConfig.command)
 						: existingConfig.command === mcpConfig.command &&
 							JSON.stringify(existingConfig.args) ===
 								JSON.stringify(mcpConfig.args);
@@ -200,6 +209,7 @@ if (agents.filter((a) => a.detected).length === 0) {
 	console.log(
 		'  • Claude Desktop (macOS): ~/Library/Application Support/Claude/claude_desktop_config.json',
 	);
+	console.log('  • Claude Code (macOS): ~/.claude/settings.json');
 	console.log('  • Claude Code (Linux): ~/.config/claude/config.json');
 	console.log('  • OpenCode: ~/.config/opencode/opencode.json');
 	console.log(
@@ -208,9 +218,9 @@ if (agents.filter((a) => a.detected).length === 0) {
 	console.log('  • Continue.dev: ~/.continue/config.json');
 	console.log('  • Cursor: ~/.cursor/mcp.json');
 	console.log('');
-	console.log('Note: OpenCode uses a different format:');
+	console.log('Note: Claude Code CLI and OpenCode use a different format:');
 	console.log('{');
-	console.log('  "mcp": {');
+	console.log('  "mcpServers": {');
 	console.log('    "pr-reviewer": {');
 	console.log('      "type": "local",');
 	console.log(`      "command": ["node", "${mcpServerPath}"]`);

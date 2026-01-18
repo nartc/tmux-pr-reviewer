@@ -6,7 +6,7 @@ import { CommentNotFoundError, DbService, } from '../shared/db.js';
 export const markResolved = (args) => Effect.gen(function* () {
     const db = yield* DbService;
     const { comment_id } = args;
-    yield* Effect.logDebug('Marking comment as resolved', { comment_id });
+    yield* Effect.logInfo('mark_comment_resolved called', { comment_id });
     // Verify comment exists
     const comment = yield* db.queryOne('SELECT * FROM comments WHERE id = ?', [comment_id]);
     if (!comment) {
@@ -20,9 +20,9 @@ export const markResolved = (args) => Effect.gen(function* () {
         });
         return `Comment ${comment_id} is already resolved (resolved at ${comment.resolved_at})`;
     }
-    // Mark as resolved
+    // Mark as resolved - update both status and resolved_at
     yield* db.execute(`UPDATE comments 
-			 SET resolved_at = datetime('now'), resolved_by = 'agent'
+			 SET status = 'resolved', resolved_at = datetime('now'), resolved_by = 'agent'
 			 WHERE id = ?`, [comment_id]);
     yield* Effect.logInfo('Comment marked as resolved', { comment_id });
     return `Comment ${comment_id} marked as resolved.`;

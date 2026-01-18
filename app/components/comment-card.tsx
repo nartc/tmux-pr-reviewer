@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import {
 	VscCheck,
 	VscClose,
+	VscComment,
 	VscEdit,
 	VscFile,
 	VscSend,
@@ -59,12 +60,14 @@ export function CommentCard({
 		setIsEditing(false);
 	};
 
-	const fileName = comment.file_path.split('/').pop();
-	const lineInfo = comment.line_start
-		? comment.line_end && comment.line_end !== comment.line_start
-			? `L${comment.line_start}-${comment.line_end}`
-			: `L${comment.line_start}`
-		: null;
+	const isGeneral = comment.file_path === '[general]';
+	const fileName = isGeneral ? 'General' : comment.file_path.split('/').pop();
+	const lineInfo =
+		!isGeneral && comment.line_start
+			? comment.line_end && comment.line_end !== comment.line_start
+				? `L${comment.line_start}-${comment.line_end}`
+				: `L${comment.line_start}`
+			: null;
 
 	return (
 		<div
@@ -73,11 +76,15 @@ export function CommentCard({
 			{/* Header */}
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex items-center gap-2 min-w-0 flex-1">
-					<VscFile className="w-3.5 h-3.5 shrink-0 text-theme-muted" />
+					{isGeneral ? (
+						<VscComment className="w-3.5 h-3.5 shrink-0 text-theme-accent" />
+					) : (
+						<VscFile className="w-3.5 h-3.5 shrink-0 text-theme-muted" />
+					)}
 					<Text
 						size="1"
 						weight="medium"
-						className="truncate text-theme-secondary"
+						className={`truncate ${isGeneral ? 'text-theme-accent italic' : 'text-theme-secondary'}`}
 					>
 						{fileName}
 					</Text>
@@ -101,7 +108,7 @@ export function CommentCard({
 							</IconButton>
 						</Tooltip>
 					)}
-					{!isEditing && !showSentAt && (
+					{!isEditing && !showSentAt && !showResolvedAt && (
 						<>
 							<Tooltip content="Edit">
 								<IconButton

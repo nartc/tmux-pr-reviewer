@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { VscArrowLeft } from 'react-icons/vsc';
 import { Link, useLoaderData, useRevalidator } from 'react-router';
 import { BaseBranchSelector } from '../components/base-branch-selector';
@@ -123,9 +123,21 @@ export default function Review() {
 		sentComments,
 		resolvedComments,
 	} = useLoaderData<typeof loader>();
+
 	const [selectedFile, setSelectedFile] = useState<string | null>(null);
 	const [diffStyle, setDiffStyle] = useState<DiffStyle>('split');
 	const revalidator = useRevalidator();
+
+	// Poll for comment updates every 30 seconds
+	useEffect(() => {
+		const interval = setInterval(() => {
+			if (revalidator.state === 'idle') {
+				revalidator.revalidate();
+			}
+		}, 30000);
+
+		return () => clearInterval(interval);
+	}, [revalidator]);
 
 	// Ref to scroll to file in virtualized diff viewer
 	const scrollToFileRef = useRef<((filePath: string) => void) | null>(null);
