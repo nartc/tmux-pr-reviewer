@@ -5,6 +5,7 @@ import { DbServiceLive } from '../services/db.service';
 import { GitServiceLive } from '../services/git.service';
 import { RepoServiceLive } from '../services/repo.service';
 import { TmuxServiceLive } from '../services/tmux.service';
+import { TransportServiceLive } from '../services/transport.service';
 import { ConfigServiceLive } from './config';
 
 // Logging layer - JSON for production, pretty for development
@@ -20,7 +21,8 @@ export const AppLayer = Layer.mergeAll(
 	ConfigServiceLive,
 	DbServiceLive,
 	GitServiceLive,
-	TmuxServiceLive,
+	TmuxServiceLive, // Keep for backward compatibility
+	TransportServiceLive,
 	RepoServiceLive,
 	CommentServiceLive,
 	AIServiceLive,

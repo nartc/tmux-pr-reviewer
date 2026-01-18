@@ -16,7 +16,19 @@ export class NotAGitRepoError extends Data.TaggedError('NotAGitRepoError')<{
 	path: string;
 }> {}
 
-// tmux errors
+// Transport errors (replaces tmux errors)
+export class TransportError extends Data.TaggedError('TransportError')<{
+	message: string;
+	cause?: unknown;
+}> {}
+
+export class TargetNotFoundError extends Data.TaggedError(
+	'TargetNotFoundError',
+)<{
+	targetId: string;
+}> {}
+
+// Legacy tmux errors (kept for compatibility during migration)
 export class TmuxError extends Data.TaggedError('TmuxError')<{
 	message: string;
 	cause?: unknown;

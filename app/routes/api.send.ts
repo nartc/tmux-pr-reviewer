@@ -2,6 +2,7 @@ import { Effect } from 'effect';
 import { runtime } from '../lib/effect-runtime';
 import { CommentService, type Comment } from '../services/comment.service';
 import { TmuxService } from '../services/tmux.service';
+import { TransportService } from '../services/transport.service';
 import type { Route } from './+types/api.send';
 
 export async function action({ request }: Route.ActionArgs) {
@@ -12,8 +13,61 @@ export async function action({ request }: Route.ActionArgs) {
 		Effect.gen(function* () {
 			const comments = yield* CommentService;
 			const tmux = yield* TmuxService;
+			const transport = yield* TransportService;
 
 			switch (intent) {
+				// New MCP-based send intents
+				case 'sendToTarget': {
+					const targetId = formData.get('targetId') as string;
+					const commentIds = formData.getAll(
+						'commentIds',
+					) as string[];
+
+					if (!targetId || commentIds.length === 0) {
+						return Response.json(
+							{ error: 'Missing required fields' },
+							{ status: 400 },
+						);
+					}
+
+					const commentResults = yield* Effect.all(
+						commentIds.map((id) => comments.getComment(id)),
+					);
+					const validComments = commentResults.filter(
+						(c): c is Comment => c !== undefined,
+					);
+
+					if (validComments.length === 0) {
+						return Response.json(
+							{ error: 'No valid comments found' },
+							{ status: 404 },
+						);
+					}
+
+					// Mark as sent first
+					yield* comments.markAsSent(commentIds);
+
+					// Get formatted text (for clipboard or display)
+					const { formatted } = yield* transport.sendComments(
+						targetId,
+						validComments.map((c) => ({
+							id: c.id,
+							file_path: c.file_path,
+							line_start: c.line_start,
+							line_end: c.line_end,
+							content: c.content,
+						})),
+					);
+
+					return Response.json({
+						success: true,
+						count: validComments.length,
+						formatted, // Return formatted text for clipboard copy
+						isClipboard: targetId === 'clipboard',
+					});
+				}
+
+				// Legacy tmux-based intents (kept for backward compatibility)
 				case 'sendOne': {
 					const sessionName = formData.get('sessionName') as string;
 					const commentId = formData.get('commentId') as string;

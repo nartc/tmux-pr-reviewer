@@ -1,26 +1,33 @@
 {
-	"name": "tmux-pr-reviewer",
-	"version": "1.0.0",
-	"description": "Local PR review tool that sends AI-processed feedback directly to your tmux sessions",
+	"name": "pr-reviewer",
+	"version": "2.0.0",
+	"description": "Local PR review tool that sends AI-processed feedback to MCP-compatible coding agents",
 	"author": "Chau Tran <nartc7789@gmail.com>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/nartc/tmux-pr-reviewer.git"
+		"url": "https://github.com/nartc/pr-reviewer.git"
 	},
 	"keywords": [
 		"pr-review",
 		"code-review",
-		"tmux",
+		"mcp",
+		"model-context-protocol",
 		"ai",
 		"local",
 		"git",
-		"diff"
+		"diff",
+		"claude-code",
+		"cline"
 	],
 	"type": "module",
 	"scripts": {
-		"build": "react-router build",
-		"dev": "cross-env NODE_ENV=development node server.js",
+		"build": "react-router build && pnpm build:mcp",
+		"build:mcp": "tsc -p mcp-server/tsconfig.json",
+		"dev": "node scripts/dev.js",
+		"dev:app": "cross-env NODE_ENV=development node server.js",
+		"mcp": "node dist/mcp-server/index.js",
+		"setup:mcp": "node scripts/setup-mcp.js",
 		"start": "node server.js",
 		"typecheck": "react-router typegen && tsc -b"
 	},
@@ -30,6 +37,7 @@
 		"@ai-sdk/openai": "^3.0.11",
 		"@effect/platform": "^0.94.1",
 		"@effect/platform-node": "^0.104.0",
+		"@modelcontextprotocol/sdk": "^1.0.4",
 		"@pierre/diffs": "^1.0.5",
 		"@radix-ui/react-dialog": "^1.1.15",
 		"@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -63,13 +71,15 @@
 		"@types/node": "^22",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
+		"concurrently": "^9.1.2",
 		"cross-env": "^10.0.0",
 		"prettier": "^3.8.0",
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"tailwindcss": "^4.1.13",
 		"typescript": "^5.9.2",
 		"vite": "^7.1.7",
-		"vite-tsconfig-paths": "^5.1.4"
+		"vite-tsconfig-paths": "^5.1.4",
+		"zod": "^4.3.5"
 	},
 	"prettier": {
 		"singleQuote": true,
