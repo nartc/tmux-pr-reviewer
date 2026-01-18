@@ -3,6 +3,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import { Context, Effect, Layer } from 'effect';
+import { type AppConfig, ConfigService } from '../lib/config';
 import {
 	AIError,
 	AIProviderUnavailableError,
@@ -17,34 +18,35 @@ export type AIProvider = 'google' | 'openai' | 'anthropic';
 interface ProviderConfig {
 	name: AIProvider;
 	models: string[];
-	createClient: () =>
+	createClient: (
+		config: AppConfig,
+	) =>
 		| ReturnType<typeof createGoogleGenerativeAI>
 		| ReturnType<typeof createOpenAI>
 		| ReturnType<typeof createAnthropic>;
-	envKey: string;
+	getApiKey: (config: AppConfig) => string | undefined;
 }
 
 const providers: ProviderConfig[] = [
 	{
 		name: 'google',
 		models: ['gemini-1.5-flash', 'gemini-1.5-pro'],
-		createClient: () =>
-			createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_API_KEY }),
-		envKey: 'GOOGLE_API_KEY',
+		createClient: (config) =>
+			createGoogleGenerativeAI({ apiKey: config.googleApiKey }),
+		getApiKey: (config) => config.googleApiKey,
 	},
 	{
 		name: 'openai',
 		models: ['gpt-4o-mini', 'gpt-4o'],
-		createClient: () =>
-			createOpenAI({ apiKey: process.env.OPENAI_API_KEY }),
-		envKey: 'OPENAI_API_KEY',
+		createClient: (config) => createOpenAI({ apiKey: config.openaiApiKey }),
+		getApiKey: (config) => config.openaiApiKey,
 	},
 	{
 		name: 'anthropic',
 		models: ['claude-3-5-sonnet-latest'],
-		createClient: () =>
-			createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY }),
-		envKey: 'ANTHROPIC_API_KEY',
+		createClient: (config) =>
+			createAnthropic({ apiKey: config.anthropicApiKey }),
+		getApiKey: (config) => config.anthropicApiKey,
 	},
 ];
 
@@ -75,7 +77,11 @@ Be concise but thorough. Focus on actionable feedback.`;
 
 // AIService interface
 export interface AIService {
-	readonly getAvailableProviders: Effect.Effect<AIProvider[], never>;
+	readonly getAvailableProviders: Effect.Effect<
+		AIProvider[],
+		never,
+		ConfigService
+	>;
 
 	readonly getSettings: Effect.Effect<
 		{ provider: AIProvider | null; model: string | null },
@@ -93,14 +99,18 @@ export interface AIService {
 	) => Effect.Effect<
 		string,
 		AIError | AIProviderUnavailableError | DatabaseError,
-		DbService
+		DbService | ConfigService
 	>;
 
 	readonly generateWithProvider: (
 		providerName: AIProvider,
 		modelName: string,
 		prompt: string,
-	) => Effect.Effect<string, AIError | AIProviderUnavailableError>;
+	) => Effect.Effect<
+		string,
+		AIError | AIProviderUnavailableError,
+		ConfigService
+	>;
 
 	readonly getModelsForProvider: (provider: AIProvider) => string[];
 }
@@ -109,9 +119,10 @@ export const AIService = Context.GenericTag<AIService>('AIService');
 
 // Implementation
 const makeAIService = (): AIService => {
-	const getAvailableProviders = Effect.sync(() =>
-		providers.filter((p) => process.env[p.envKey]).map((p) => p.name),
-	).pipe(Effect.withSpan('ai.getAvailableProviders'));
+	const getAvailableProviders = Effect.gen(function* () {
+		const { config } = yield* ConfigService;
+		return providers.filter((p) => p.getApiKey(config)).map((p) => p.name);
+	}).pipe(Effect.withSpan('ai.getAvailableProviders'));
 
 	const getSettings = Effect.gen(function* () {
 		const providerRow = yield* queryOne<{ value: string }>(
@@ -146,6 +157,8 @@ const makeAIService = (): AIService => {
 		prompt: string,
 	) =>
 		Effect.gen(function* () {
+			const { config } = yield* ConfigService;
+
 			const providerConfig = providers.find(
 				(p) => p.name === providerName,
 			);
@@ -155,7 +168,7 @@ const makeAIService = (): AIService => {
 				);
 			}
 
-			if (!process.env[providerConfig.envKey]) {
+			if (!providerConfig.getApiKey(config)) {
 				return yield* Effect.fail(
 					new AIProviderUnavailableError({ provider: providerName }),
 				);
@@ -166,7 +179,7 @@ const makeAIService = (): AIService => {
 				model: modelName,
 			});
 
-			const client = providerConfig.createClient();
+			const client = providerConfig.createClient(config);
 			const model = client(modelName);
 
 			const result = yield* Effect.tryPromise({
@@ -202,6 +215,8 @@ const makeAIService = (): AIService => {
 			if (comments.length === 0) {
 				return '';
 			}
+
+			const { config } = yield* ConfigService;
 
 			// Format comments for the prompt
 			const commentsText = comments
@@ -239,7 +254,7 @@ const makeAIService = (): AIService => {
 				const providerConfig = providers.find(
 					(p) => p.name === provider,
 				);
-				if (!providerConfig || !process.env[providerConfig.envKey]) {
+				if (!providerConfig || !providerConfig.getApiKey(config)) {
 					continue;
 				}
 

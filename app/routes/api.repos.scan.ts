@@ -1,19 +1,12 @@
 import { Effect } from 'effect';
 import { readdirSync } from 'fs';
-import { homedir } from 'os';
 import { join } from 'path';
+import { ConfigService } from '../lib/config';
 import { runtime } from '../lib/effect-runtime';
 import {
 	type GitService as GitServiceType,
 	GitService,
 } from '../services/git.service';
-
-// Config defaults match app/lib/config.ts
-const MAX_DEPTH = parseInt(process.env.REPO_SCAN_MAX_DEPTH || '3', 10);
-const SCAN_ROOT =
-	process.env.REPO_SCAN_ROOT?.replace('~', homedir()) ||
-	process.env.HOME ||
-	'/';
 
 const IGNORED_DIRS = new Set([
 	'node_modules',
@@ -37,10 +30,11 @@ interface GitRepo {
 const scanForRepos = (
 	git: GitServiceType,
 	dir: string,
+	maxDepth: number,
 	depth: number = 0,
 ): Effect.Effect<GitRepo[]> =>
 	Effect.gen(function* () {
-		if (depth > MAX_DEPTH) return [];
+		if (depth > maxDepth) return [];
 
 		const repos: GitRepo[] = [];
 
@@ -67,7 +61,12 @@ const scanForRepos = (
 				}
 
 				// Recurse into subdirectories
-				const subRepos = yield* scanForRepos(git, fullPath, depth + 1);
+				const subRepos = yield* scanForRepos(
+					git,
+					fullPath,
+					maxDepth,
+					depth + 1,
+				);
 				repos.push(...subRepos);
 			}
 		} catch {
@@ -81,7 +80,12 @@ export async function loader() {
 	return runtime.runPromise(
 		Effect.gen(function* () {
 			const git = yield* GitService;
-			const repos = yield* scanForRepos(git, SCAN_ROOT);
+			const { config } = yield* ConfigService;
+			const repos = yield* scanForRepos(
+				git,
+				config.repoScanRoot,
+				config.repoScanMaxDepth,
+			);
 			// Sort by name
 			repos.sort((a, b) => a.name.localeCompare(b.name));
 			return Response.json({ repos });
