@@ -4,6 +4,7 @@ import {
 	VscCheck,
 	VscClose,
 	VscEdit,
+	VscFile,
 	VscSend,
 	VscTrash,
 } from 'react-icons/vsc';
@@ -65,18 +66,29 @@ export function CommentCard({
 
 	return (
 		<div
-			className={`border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex flex-col gap-2 ${
-				isDeleting ? 'opacity-50' : ''
-			}`}
+			className={`card-hover p-3 flex flex-col gap-2 ${isDeleting ? 'opacity-50' : ''}`}
 		>
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="text-xs text-gray-500 truncate flex-1 flex items-center gap-1">
-					<Text size="1" weight="medium">
+			<div className="flex items-center justify-between gap-2">
+				<div className="flex items-center gap-2 min-w-0 flex-1">
+					<VscFile
+						className="w-3.5 h-3.5 shrink-0"
+						style={{ color: 'var(--color-text-muted)' }}
+					/>
+					<Text
+						size="1"
+						weight="medium"
+						className="truncate"
+						style={{ color: 'var(--color-text-secondary)' }}
+					>
 						{fileName}
 					</Text>
 					{lineInfo && (
-						<Text size="1" color="blue">
+						<Text
+							size="1"
+							className="shrink-0"
+							style={{ color: 'var(--color-accent-blue)' }}
+						>
 							{lineInfo}
 						</Text>
 					)}
@@ -89,6 +101,7 @@ export function CommentCard({
 								variant="ghost"
 								onClick={() => onSendNow(comment)}
 								aria-label="Send now"
+								className="btn-press"
 							>
 								<VscSend aria-hidden="true" />
 							</IconButton>
@@ -102,6 +115,7 @@ export function CommentCard({
 									variant="ghost"
 									onClick={() => setIsEditing(true)}
 									aria-label="Edit comment"
+									className="btn-press"
 								>
 									<VscEdit aria-hidden="true" />
 								</IconButton>
@@ -114,6 +128,7 @@ export function CommentCard({
 									onClick={handleDelete}
 									aria-label="Delete comment"
 									disabled={isDeleting}
+									className="btn-press"
 								>
 									<VscTrash aria-hidden="true" />
 								</IconButton>
@@ -125,7 +140,7 @@ export function CommentCard({
 
 			{/* Content */}
 			{isEditing ? (
-				<div className="flex flex-col gap-2">
+				<div className="flex flex-col gap-2 animate-slide-in">
 					<TextArea
 						value={editContent}
 						onChange={(e) => setEditContent(e.target.value)}
@@ -133,14 +148,19 @@ export function CommentCard({
 						rows={3}
 						autoFocus
 						aria-label="Edit comment text"
+						style={{
+							backgroundColor: 'var(--color-bg)',
+							borderColor: 'var(--color-border)',
+						}}
 					/>
 					<div className="flex justify-end gap-1">
-						<Tooltip content="Cancel">
+						<Tooltip content="Cancel (Esc)">
 							<IconButton
 								size="1"
 								variant="ghost"
 								onClick={handleCancel}
 								aria-label="Cancel editing"
+								className="btn-press"
 							>
 								<VscClose aria-hidden="true" />
 							</IconButton>
@@ -148,11 +168,12 @@ export function CommentCard({
 						<Tooltip content="Save">
 							<IconButton
 								size="1"
-								variant="ghost"
+								variant="soft"
 								color="green"
 								onClick={handleSave}
 								aria-label="Save changes"
 								disabled={isUpdating}
+								className="btn-press"
 							>
 								<VscCheck aria-hidden="true" />
 							</IconButton>
@@ -165,11 +186,20 @@ export function CommentCard({
 						ref={contentRef}
 						className={`relative ${!isExpanded ? 'max-h-[4.5em] overflow-hidden' : ''}`}
 					>
-						<Text size="2" className="whitespace-pre-wrap">
+						<Text
+							size="2"
+							className="whitespace-pre-wrap"
+							style={{ color: 'var(--color-text-primary)' }}
+						>
 							{comment.content}
 						</Text>
 						{!isExpanded && comment.content.length > 100 && (
-							<div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white dark:from-gray-900 to-transparent" />
+							<div
+								className="absolute bottom-0 left-0 right-0 h-6"
+								style={{
+									background: `linear-gradient(to top, var(--color-surface), transparent)`,
+								}}
+							/>
 						)}
 					</div>
 					{comment.content.length > 100 && (
@@ -177,13 +207,21 @@ export function CommentCard({
 							variant="ghost"
 							size="1"
 							onClick={() => setIsExpanded(!isExpanded)}
-							className="px-0"
+							className="self-start px-0"
 						>
 							{isExpanded ? 'Show less' : 'Show more'}
 						</Button>
 					)}
 					{showSentAt && comment.sent_at && (
-						<Text size="1" color="gray">
+						<Text
+							size="1"
+							className="flex items-center gap-1"
+							style={{ color: 'var(--color-text-muted)' }}
+						>
+							<VscCheck
+								className="w-3 h-3"
+								style={{ color: 'var(--color-success-green)' }}
+							/>
 							Sent {new Date(comment.sent_at).toLocaleString()}
 						</Text>
 					)}

@@ -1,7 +1,13 @@
-import { Dialog } from '@radix-ui/themes';
+import { Button, Dialog, Text } from '@radix-ui/themes';
 import { Effect } from 'effect';
 import { useCallback, useState } from 'react';
-import { VscAdd, VscArrowRight, VscRepo, VscTrash } from 'react-icons/vsc';
+import {
+	VscAdd,
+	VscArrowRight,
+	VscGitCommit,
+	VscRepo,
+	VscTrash,
+} from 'react-icons/vsc';
 import { Form, redirect, useFetcher, useLoaderData } from 'react-router';
 
 import { EmptyRepos } from '../components/EmptyStates';
@@ -115,21 +121,38 @@ export default function Home() {
 	return (
 		<SimpleLayout>
 			<div className="max-w-4xl mx-auto p-8">
+				{/* Header */}
 				<div className="flex items-center justify-between mb-8">
-					<h2 className="text-2xl font-bold">Repositories</h2>
-					<button
+					<div>
+						<h2
+							className="text-2xl font-bold"
+							style={{ color: 'var(--color-text-primary)' }}
+						>
+							Repositories
+						</h2>
+						<Text
+							size="2"
+							style={{ color: 'var(--color-text-secondary)' }}
+						>
+							{repos.length === 0
+								? 'Add a repository to get started'
+								: `${repos.length} repositor${repos.length === 1 ? 'y' : 'ies'}`}
+						</Text>
+					</div>
+					<Button
+						size="3"
 						onClick={handleOpenModal}
-						className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+						className="btn-press"
 					>
 						<VscAdd className="w-4 h-4" />
 						Add Repository
-					</button>
+					</Button>
 				</div>
 
 				{repos.length === 0 ? (
 					<EmptyRepos onAddRepo={handleOpenModal} />
 				) : (
-					<div className="space-y-4">
+					<div className="grid gap-4">
 						{repos.map((repo) => (
 							<RepoCard key={repo.id} repo={repo} />
 						))}
@@ -155,18 +178,60 @@ function RepoCard({ repo }: { repo: RepoWithPath }) {
 	const primaryPath = repo.paths[0]?.path;
 
 	return (
-		<div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-			<div className="flex items-start justify-between">
-				<div className="flex items-center gap-3">
-					<VscRepo className="w-6 h-6 text-gray-400" />
-					<div>
-						<h3 className="font-semibold">{repo.name}</h3>
-						<p className="text-sm text-gray-500">
-							{repo.remote_url || 'No remote'}
-						</p>
+		<div className="card-hover p-4 animate-fade-in-up">
+			<div className="flex items-start justify-between gap-4">
+				{/* Left side - Repo info */}
+				<div className="flex items-start gap-3 min-w-0 flex-1">
+					<div
+						className="p-2 rounded-lg shrink-0"
+						style={{ backgroundColor: 'var(--color-surface-hover)' }}
+					>
+						<VscRepo
+							className="w-5 h-5"
+							style={{ color: 'var(--color-text-secondary)' }}
+						/>
+					</div>
+					<div className="min-w-0 flex-1">
+						<h3
+							className="font-semibold truncate"
+							style={{ color: 'var(--color-text-primary)' }}
+						>
+							{repo.name}
+						</h3>
+						<div className="flex items-center gap-2 mt-1">
+							{repo.remote_url ? (
+								<Text
+									size="1"
+									className="truncate"
+									style={{ color: 'var(--color-text-muted)' }}
+								>
+									{repo.remote_url}
+								</Text>
+							) : (
+								<Text
+									size="1"
+									style={{ color: 'var(--color-text-muted)' }}
+								>
+									Local repository
+								</Text>
+							)}
+						</div>
+						{primaryPath && (
+							<div
+								className="flex items-center gap-1 mt-2"
+								style={{ color: 'var(--color-text-muted)' }}
+							>
+								<VscGitCommit className="w-3.5 h-3.5" />
+								<Text size="1" className="truncate">
+									{primaryPath}
+								</Text>
+							</div>
+						)}
 					</div>
 				</div>
-				<div className="flex items-center gap-2">
+
+				{/* Right side - Actions */}
+				<div className="flex items-center gap-2 shrink-0">
 					{primaryPath && (
 						<Form method="POST" action="/?index">
 							<input type="hidden" name="intent" value="open" />
@@ -180,13 +245,14 @@ function RepoCard({ repo }: { repo: RepoWithPath }) {
 								name="path"
 								value={primaryPath}
 							/>
-							<button
+							<Button
 								type="submit"
-								className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+								size="2"
+								className="btn-press"
 							>
 								Open
 								<VscArrowRight className="w-4 h-4" />
-							</button>
+							</Button>
 						</Form>
 					)}
 					<Form method="POST" action="/?index">
@@ -194,8 +260,21 @@ function RepoCard({ repo }: { repo: RepoWithPath }) {
 						<input type="hidden" name="repoId" value={repo.id} />
 						<button
 							type="submit"
-							className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+							className="p-2 rounded-md transition-colors btn-press"
+							style={{ color: 'var(--color-text-muted)' }}
 							title="Delete repository"
+							onMouseEnter={(e) => {
+								e.currentTarget.style.color =
+									'var(--color-danger-red)';
+								e.currentTarget.style.backgroundColor =
+									'rgba(239, 68, 68, 0.1)';
+							}}
+							onMouseLeave={(e) => {
+								e.currentTarget.style.color =
+									'var(--color-text-muted)';
+								e.currentTarget.style.backgroundColor =
+									'transparent';
+							}}
 						>
 							<VscTrash className="w-4 h-4" />
 						</button>
@@ -203,20 +282,45 @@ function RepoCard({ repo }: { repo: RepoWithPath }) {
 				</div>
 			</div>
 
+			{/* Multiple paths indicator */}
 			{repo.paths.length > 1 && (
-				<div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-					<p className="text-xs text-gray-500 mb-2">
-						Paths ({repo.paths.length})
-					</p>
-					<div className="space-y-1">
-						{repo.paths.map((p) => (
-							<div
+				<div
+					className="mt-3 pt-3"
+					style={{ borderTop: '1px solid var(--color-border)' }}
+				>
+					<Text
+						size="1"
+						className="mb-2 block"
+						style={{ color: 'var(--color-text-muted)' }}
+					>
+						{repo.paths.length} paths linked
+					</Text>
+					<div className="flex flex-wrap gap-2">
+						{repo.paths.slice(0, 3).map((p) => (
+							<span
 								key={p.id}
-								className="text-sm text-gray-600 dark:text-gray-400 truncate"
+								className="text-xs px-2 py-1 rounded"
+								style={{
+									backgroundColor:
+										'var(--color-surface-hover)',
+									color: 'var(--color-text-secondary)',
+								}}
 							>
-								{p.path}
-							</div>
+								{p.path.split('/').pop()}
+							</span>
 						))}
+						{repo.paths.length > 3 && (
+							<span
+								className="text-xs px-2 py-1 rounded"
+								style={{
+									backgroundColor:
+										'var(--color-surface-hover)',
+									color: 'var(--color-text-muted)',
+								}}
+							>
+								+{repo.paths.length - 3} more
+							</span>
+						)}
 					</div>
 				</div>
 			)}

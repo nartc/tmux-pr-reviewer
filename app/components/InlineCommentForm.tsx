@@ -83,19 +83,24 @@ export function InlineCommentForm({
 	return (
 		<div
 			data-comment-form
-			className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 box-border"
+			className="rounded-lg shadow-lg p-3 box-border animate-slide-in"
+			style={{
+				backgroundColor: 'var(--color-surface)',
+				border: '1px solid var(--color-border)',
+			}}
 		>
 			{/* Header */}
 			<div className="flex items-center justify-between mb-2">
-				<Text size="1" color="gray">
+				<Text size="1" style={{ color: 'var(--color-text-secondary)' }}>
 					{lineInfo}
 				</Text>
-				<Tooltip content="Close">
+				<Tooltip content="Close (Esc)">
 					<IconButton
 						size="1"
 						variant="ghost"
 						onClick={onClose}
 						aria-label="Close comment form"
+						className="btn-press"
 					>
 						<VscClose aria-hidden="true" />
 					</IconButton>
@@ -112,11 +117,20 @@ export function InlineCommentForm({
 				rows={3}
 				autoFocus
 				aria-label="Comment text"
+				style={{
+					backgroundColor: 'var(--color-bg)',
+					borderColor: 'var(--color-border)',
+				}}
 			/>
 
 			{/* Actions */}
 			<div className="flex items-center justify-end mt-2 gap-2">
-				<Button variant="ghost" size="1" onClick={onClose}>
+				<Button
+					variant="ghost"
+					size="1"
+					onClick={onClose}
+					className="btn-press"
+				>
 					Cancel <Kbd size="1">Esc</Kbd>
 				</Button>
 				{onSendNow && (
@@ -125,6 +139,7 @@ export function InlineCommentForm({
 						color="green"
 						onClick={handleSendNow}
 						disabled={!content.trim() || isPending}
+						className="btn-press"
 					>
 						Send Now <Kbd size="1">⌘⇧↵</Kbd>
 					</Button>
@@ -133,6 +148,7 @@ export function InlineCommentForm({
 					size="1"
 					onClick={handleQueue}
 					disabled={!content.trim() || isPending}
+					className="btn-press"
 				>
 					Queue <Kbd size="1">⌘↵</Kbd>
 				</Button>

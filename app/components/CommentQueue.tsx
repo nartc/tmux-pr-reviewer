@@ -1,6 +1,12 @@
 import { Button, Checkbox, Text } from '@radix-ui/themes';
 import { useState } from 'react';
-import { VscChevronDown, VscChevronRight, VscSend } from 'react-icons/vsc';
+import {
+	VscCheck,
+	VscChevronDown,
+	VscChevronRight,
+	VscInbox,
+	VscSend,
+} from 'react-icons/vsc';
 import { useAsyncAction } from '../lib/use-async-action';
 import type { Comment } from '../services/comment.service';
 import { CommentCard } from './CommentCard';
@@ -69,13 +75,21 @@ export function CommentQueue({
 
 	return (
 		<div className="h-full flex flex-col">
+			{/* Panel header */}
+			<div className="panel-header">
+				<span>Comments</span>
+			</div>
+
 			{/* Session Selector */}
-			<div className="p-4 border-b border-gray-200 dark:border-gray-700">
+			<div
+				className="p-4 border-b"
+				style={{ borderColor: 'var(--color-border)' }}
+			>
 				<Text
 					size="1"
-					weight="bold"
-					color="gray"
+					weight="medium"
 					className="mb-2 block"
+					style={{ color: 'var(--color-text-secondary)' }}
 				>
 					Target Session
 				</Text>
@@ -87,38 +101,59 @@ export function CommentQueue({
 			</div>
 
 			{/* Queued Section */}
-			<div className="border-b border-gray-200 dark:border-gray-700">
+			<div className="section-accordion section-queued">
 				<button
 					onClick={() => setQueueExpanded(!queueExpanded)}
-					className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800"
+					className="section-accordion-header"
 					aria-expanded={queueExpanded}
 					aria-controls="queued-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{queueExpanded ? (
-							<VscChevronDown aria-hidden="true" />
+							<VscChevronDown
+								className="w-4 h-4"
+								style={{ color: 'var(--color-text-muted)' }}
+							/>
 						) : (
-							<VscChevronRight aria-hidden="true" />
+							<VscChevronRight
+								className="w-4 h-4"
+								style={{ color: 'var(--color-text-muted)' }}
+							/>
 						)}
 						<Text size="2" weight="bold">
 							Queued
 						</Text>
-						<Text size="1" color="gray">
-							({queuedComments.length})
-						</Text>
+						<span className="count-badge">
+							{queuedComments.length}
+						</span>
 					</div>
 				</button>
 
 				{queueExpanded && (
 					<div id="queued-comments-section" className="px-4 pb-4">
 						{queuedComments.length === 0 ? (
-							<Text size="2" color="gray" className="py-2">
-								No queued comments
-							</Text>
+							<div className="flex flex-col items-center py-6 gap-2">
+								<VscInbox
+									className="w-8 h-8"
+									style={{ color: 'var(--color-text-muted)' }}
+								/>
+								<Text
+									size="2"
+									style={{ color: 'var(--color-text-muted)' }}
+								>
+									No queued comments
+								</Text>
+								<Text
+									size="1"
+									style={{ color: 'var(--color-text-muted)' }}
+								>
+									Add comments from the diff viewer
+								</Text>
+							</div>
 						) : (
 							<>
 								{/* Selection controls */}
-								<div className="flex items-center justify-between mb-3">
+								<div className="flex items-center justify-between mb-3 pt-2">
 									<Button
 										variant="ghost"
 										size="1"
@@ -136,15 +171,9 @@ export function CommentQueue({
 												size="1"
 												onClick={handleStageSelected}
 												disabled={isStaging}
+												className="btn-press"
 											>
-												Stage Raw
-											</Button>
-											<Button
-												size="1"
-												onClick={handleStageSelected}
-												disabled={isStaging}
-											>
-												Process & Stage
+												Stage ({selectedIds.size})
 											</Button>
 										</div>
 									)}
@@ -155,7 +184,7 @@ export function CommentQueue({
 									{queuedComments.map((comment) => (
 										<div
 											key={comment.id}
-											className="flex items-start gap-2"
+											className="flex items-start gap-2 animate-fade-in-up"
 										>
 											<Checkbox
 												checked={selectedIds.has(
@@ -186,56 +215,80 @@ export function CommentQueue({
 			</div>
 
 			{/* Staged Section */}
-			<div className="border-b border-gray-200 dark:border-gray-700">
+			<div className="section-accordion section-staged">
 				<button
 					onClick={() => setStagedExpanded(!stagedExpanded)}
-					className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800"
+					className="section-accordion-header"
 					aria-expanded={stagedExpanded}
 					aria-controls="staged-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{stagedExpanded ? (
-							<VscChevronDown aria-hidden="true" />
+							<VscChevronDown
+								className="w-4 h-4"
+								style={{ color: 'var(--color-text-muted)' }}
+							/>
 						) : (
-							<VscChevronRight aria-hidden="true" />
+							<VscChevronRight
+								className="w-4 h-4"
+								style={{ color: 'var(--color-text-muted)' }}
+							/>
 						)}
 						<Text size="2" weight="bold">
 							Staged
 						</Text>
-						<Text size="1" color="gray">
-							({stagedComments.length})
-						</Text>
+						<span className="count-badge">
+							{stagedComments.length}
+						</span>
 					</div>
+					{stagedComments.length > 0 && (
+						<VscCheck className="w-4 h-4 text-blue-500" />
+					)}
 				</button>
 
 				{stagedExpanded && (
 					<div id="staged-comments-section" className="px-4 pb-4">
 						{stagedComments.length === 0 ? (
-							<Text size="2" color="gray" className="py-2">
-								No staged comments
-							</Text>
+							<div className="flex flex-col items-center py-6 gap-2">
+								<Text
+									size="2"
+									style={{ color: 'var(--color-text-muted)' }}
+								>
+									No staged comments
+								</Text>
+								<Text
+									size="1"
+									style={{ color: 'var(--color-text-muted)' }}
+								>
+									Select and stage comments from the queue
+								</Text>
+							</div>
 						) : (
 							<>
 								{/* Send all button */}
-								<div className="mb-3">
+								<div className="mb-3 pt-2">
 									<Button
 										size="2"
-										color="green"
-										className="w-full"
+										className="w-full btn-press"
+										style={{
+											backgroundColor:
+												'var(--color-success-green)',
+										}}
 										onClick={onSendAllStaged}
 										disabled={!selectedTmuxSession}
 									>
 										<VscSend aria-hidden="true" />
-										Send All Staged ({stagedComments.length}
-										)
+										Send All ({stagedComments.length})
 									</Button>
 									{!selectedTmuxSession && (
 										<Text
 											size="1"
-											color="gray"
-											className="mt-1 text-center block"
+											className="mt-2 text-center block"
+											style={{
+												color: 'var(--color-text-muted)',
+											}}
 										>
-											Select a tmux session first
+											Select a session to send
 										</Text>
 									)}
 								</div>
@@ -243,10 +296,12 @@ export function CommentQueue({
 								{/* Staged comment list */}
 								<div className="space-y-2">
 									{stagedComments.map((comment) => (
-										<CommentCard
+										<div
 											key={comment.id}
-											comment={comment}
-										/>
+											className="animate-fade-in-up"
+										>
+											<CommentCard comment={comment} />
+										</div>
 									))}
 								</div>
 							</>
@@ -256,42 +311,64 @@ export function CommentQueue({
 			</div>
 
 			{/* Sent Section */}
-			<div className="flex-1 overflow-y-auto">
+			<div className="section-accordion section-sent flex-1 overflow-y-auto">
 				<button
 					onClick={() => setSentExpanded(!sentExpanded)}
-					className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800"
+					className="section-accordion-header sticky top-0 z-10"
+					style={{ backgroundColor: 'var(--color-bg)' }}
 					aria-expanded={sentExpanded}
 					aria-controls="sent-comments-section"
 				>
 					<div className="flex items-center gap-2">
 						{sentExpanded ? (
-							<VscChevronDown aria-hidden="true" />
+							<VscChevronDown
+								className="w-4 h-4"
+								style={{ color: 'var(--color-text-muted)' }}
+							/>
 						) : (
-							<VscChevronRight aria-hidden="true" />
+							<VscChevronRight
+								className="w-4 h-4"
+								style={{ color: 'var(--color-text-muted)' }}
+							/>
 						)}
 						<Text size="2" weight="bold">
 							Sent
 						</Text>
-						<Text size="1" color="gray">
-							({sentComments.length})
-						</Text>
+						<span className="count-badge">
+							{sentComments.length}
+						</span>
 					</div>
 				</button>
 
 				{sentExpanded && (
 					<div id="sent-comments-section" className="px-4 pb-4">
 						{sentComments.length === 0 ? (
-							<Text size="2" color="gray" className="py-2">
-								No sent comments
-							</Text>
+							<div className="flex flex-col items-center py-6 gap-2">
+								<Text
+									size="2"
+									style={{ color: 'var(--color-text-muted)' }}
+								>
+									No sent comments
+								</Text>
+								<Text
+									size="1"
+									style={{ color: 'var(--color-text-muted)' }}
+								>
+									Sent comments will appear here
+								</Text>
+							</div>
 						) : (
-							<div className="space-y-2">
+							<div className="space-y-2 pt-2">
 								{sentComments.map((comment) => (
-									<CommentCard
+									<div
 										key={comment.id}
-										comment={comment}
-										showSentAt
-									/>
+										className="opacity-75"
+									>
+										<CommentCard
+											comment={comment}
+											showSentAt
+										/>
+									</div>
 								))}
 							</div>
 						)}

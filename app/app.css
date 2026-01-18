@@ -16,10 +16,52 @@
 	--z-modal: 50;
 	--z-toast: 60;
 
-	/* Sidebar widths */
-	--sidebar-collapsed: 2.5rem;
-	--sidebar-expanded: 16rem;
-	--sidebar-right: 20rem;
+	/* Spacing scale (4px grid) */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-6: 24px;
+	--space-8: 32px;
+
+	/* Panel widths */
+	--panel-left-min: 180px;
+	--panel-left-default: 240px;
+	--panel-left-max: 400px;
+	--panel-right-min: 260px;
+	--panel-right-default: 320px;
+	--panel-right-max: 480px;
+
+	/* Border radius */
+	--radius-sm: 4px;
+	--radius-md: 6px;
+	--radius-lg: 8px;
+
+	/* Dark theme colors (GitHub-inspired) */
+	--color-bg-dark: #0D1117;
+	--color-surface-dark: #161B22;
+	--color-surface-hover-dark: #21262D;
+	--color-border-dark: #30363D;
+	--color-border-active-dark: #3B82F6;
+	--color-text-primary-dark: #E6EDF3;
+	--color-text-secondary-dark: #8B949E;
+	--color-text-muted-dark: #656D76;
+
+	/* Light theme colors */
+	--color-bg-light: #FFFFFF;
+	--color-surface-light: #F6F8FA;
+	--color-surface-hover-light: #F3F4F6;
+	--color-border-light: #D1D5DB;
+	--color-border-active-light: #3B82F6;
+	--color-text-primary-light: #1F2937;
+	--color-text-secondary-light: #6B7280;
+	--color-text-muted-light: #9CA3AF;
+
+	/* Accent colors */
+	--color-accent-blue: #3B82F6;
+	--color-success-green: #22C55E;
+	--color-warning-amber: #F59E0B;
+	--color-danger-red: #EF4444;
 }
 
 /* Density variables */
@@ -60,15 +102,40 @@ body.compact {
 
 html,
 body {
-	@apply bg-white text-gray-900;
+	background-color: var(--color-bg-light);
+	color: var(--color-text-primary-light);
 	font-size: var(--density-font-size);
 	line-height: var(--density-line-height);
 }
 
 html.dark,
 html.dark body {
-	@apply bg-gray-950 text-gray-100;
+	background-color: var(--color-bg-dark);
+	color: var(--color-text-primary-dark);
 	color-scheme: dark;
+}
+
+/* Theme-aware CSS custom properties */
+:root {
+	--color-bg: var(--color-bg-light);
+	--color-surface: var(--color-surface-light);
+	--color-surface-hover: var(--color-surface-hover-light);
+	--color-border: var(--color-border-light);
+	--color-border-active: var(--color-border-active-light);
+	--color-text-primary: var(--color-text-primary-light);
+	--color-text-secondary: var(--color-text-secondary-light);
+	--color-text-muted: var(--color-text-muted-light);
+}
+
+html.dark {
+	--color-bg: var(--color-bg-dark);
+	--color-surface: var(--color-surface-dark);
+	--color-surface-hover: var(--color-surface-hover-dark);
+	--color-border: var(--color-border-dark);
+	--color-border-active: var(--color-border-active-dark);
+	--color-text-primary: var(--color-text-primary-dark);
+	--color-text-secondary: var(--color-text-secondary-dark);
+	--color-text-muted: var(--color-text-muted-dark);
 }
 
 /* Transitions - more selective */
@@ -281,4 +348,228 @@ a:focus-visible {
 	clip: rect(0, 0, 0, 0);
 	white-space: nowrap;
 	border-width: 0;
+}
+
+/* ============================================
+   NEW DESIGN SYSTEM UTILITIES
+   ============================================ */
+
+/* Panel container */
+.panel {
+	background-color: var(--color-surface);
+	border-color: var(--color-border);
+}
+
+/* Panel header styling */
+.panel-header {
+	@apply px-4 py-3 flex items-center justify-between;
+	background-color: var(--color-surface);
+	border-bottom: 1px solid var(--color-border);
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--color-text-secondary);
+}
+
+/* Status pills for file status */
+.status-pill {
+	@apply inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full;
+}
+
+.status-pill-added {
+	@apply bg-green-500/15 text-green-600;
+}
+html.dark .status-pill-added {
+	@apply bg-green-500/20 text-green-400;
+}
+
+.status-pill-modified {
+	@apply bg-amber-500/15 text-amber-600;
+}
+html.dark .status-pill-modified {
+	@apply bg-amber-500/20 text-amber-400;
+}
+
+.status-pill-deleted {
+	@apply bg-red-500/15 text-red-600;
+}
+html.dark .status-pill-deleted {
+	@apply bg-red-500/20 text-red-400;
+}
+
+.status-pill-renamed {
+	@apply bg-blue-500/15 text-blue-600;
+}
+html.dark .status-pill-renamed {
+	@apply bg-blue-500/20 text-blue-400;
+}
+
+/* Tree item styling for file explorer */
+.tree-item {
+	@apply w-full px-2 py-1.5 flex items-center gap-2 text-left transition-colors;
+	border-left: 2px solid transparent;
+}
+
+.tree-item:hover {
+	background-color: var(--color-surface-hover);
+}
+
+.tree-item-selected {
+	background-color: var(--color-accent-blue);
+	background-color: rgba(59, 130, 246, 0.1);
+	border-left-color: var(--color-accent-blue);
+}
+
+html.dark .tree-item-selected {
+	background-color: rgba(59, 130, 246, 0.15);
+}
+
+/* Tree indentation guides */
+.tree-indent-guide {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	background-color: var(--color-border);
+}
+
+/* Card with hover effect */
+.card-hover {
+	@apply border rounded-lg transition-all duration-150;
+	border-color: var(--color-border);
+	background-color: var(--color-surface);
+}
+
+.card-hover:hover {
+	border-color: var(--color-border-active);
+	box-shadow: 0 0 0 1px var(--color-border-active);
+}
+
+/* Section accordion styling for comment queue */
+.section-accordion {
+	border-bottom: 1px solid var(--color-border);
+}
+
+.section-accordion-header {
+	@apply w-full px-4 py-3 flex items-center justify-between;
+	transition: background-color 0.1s ease;
+}
+
+.section-accordion-header:hover {
+	background-color: var(--color-surface-hover);
+}
+
+/* Section accent colors */
+.section-queued {
+	border-left: 3px solid var(--color-warning-amber);
+}
+
+.section-staged {
+	border-left: 3px solid var(--color-accent-blue);
+}
+
+.section-sent {
+	border-left: 3px solid var(--color-success-green);
+}
+
+/* Count badge */
+.count-badge {
+	@apply inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium rounded-full;
+	background-color: var(--color-surface-hover);
+	color: var(--color-text-secondary);
+}
+
+/* Resize handle for panels */
+.resize-handle {
+	@apply absolute top-0 bottom-0 w-1 cursor-col-resize z-10;
+	background-color: transparent;
+	transition: background-color 0.15s ease;
+}
+
+.resize-handle:hover,
+.resize-handle-active {
+	background-color: var(--color-accent-blue);
+}
+
+/* Header with backdrop blur */
+.header-floating {
+	@apply backdrop-blur-md;
+	background-color: rgba(255, 255, 255, 0.8);
+	border-bottom: 1px solid var(--color-border);
+}
+
+html.dark .header-floating {
+	background-color: rgba(13, 17, 23, 0.8);
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+	@apply flex items-center gap-1 text-sm;
+	color: var(--color-text-secondary);
+}
+
+.breadcrumb-item {
+	@apply hover:text-blue-500 transition-colors;
+}
+
+.breadcrumb-separator {
+	color: var(--color-text-muted);
+}
+
+/* ============================================
+   ANIMATION UPDATES
+   ============================================ */
+
+/* Slide in animation for comment form */
+@keyframes slideInFromBottom {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animate-slide-in {
+	animation: slideInFromBottom 150ms ease-out;
+}
+
+/* Subtle scale on button press */
+.btn-press:active {
+	transform: scale(0.98);
+}
+
+/* Pulse animation for status indicators */
+@keyframes pulse-dot {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+.animate-pulse-dot {
+	animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Fade in animation */
+@keyframes fadeInUp {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animate-fade-in-up {
+	animation: fadeInUp 200ms ease-out;
 }

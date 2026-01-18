@@ -71,8 +71,8 @@ function AppContent() {
 		<Theme
 			appearance={resolvedTheme}
 			accentColor="blue"
-			grayColor="slate"
-			radius="medium"
+			grayColor="gray"
+			radius="small"
 			scaling={densityToScaling(density)}
 			panelBackground="translucent"
 			className="bg-transparent!"

@@ -8,7 +8,6 @@ import type {
 	ParsedPatch,
 } from '@pierre/diffs';
 import {
-	Badge,
 	Button,
 	DropdownMenu,
 	IconButton,
@@ -336,7 +335,10 @@ function DiffViewerClient({
 						<div
 							key={filePath}
 							ref={(el) => setFileRef(filePath, el)}
-							className="file-diff-container border-b border-gray-200 dark:border-gray-800 relative"
+							className="file-diff-container relative mb-4"
+							style={{
+								borderBottom: '1px solid var(--color-border)',
+							}}
 							data-file-path={filePath}
 						>
 							<StickyFileHeader
@@ -464,14 +466,34 @@ function StickyFileHeader({
 	const getIcon = (type: ChangeTypes) => {
 		switch (type) {
 			case 'new':
-				return <VscDiffAdded className="w-4 h-4 text-green-500" />;
+				return (
+					<VscDiffAdded
+						className="w-5 h-5"
+						style={{ color: 'var(--color-success-green)' }}
+					/>
+				);
 			case 'deleted':
-				return <VscDiffRemoved className="w-4 h-4 text-red-500" />;
+				return (
+					<VscDiffRemoved
+						className="w-5 h-5"
+						style={{ color: 'var(--color-danger-red)' }}
+					/>
+				);
 			case 'rename-pure':
 			case 'rename-changed':
-				return <VscFile className="w-4 h-4 text-yellow-500" />;
+				return (
+					<VscFile
+						className="w-5 h-5"
+						style={{ color: 'var(--color-warning-amber)' }}
+					/>
+				);
 			default:
-				return <VscDiffModified className="w-4 h-4 text-blue-500" />;
+				return (
+					<VscDiffModified
+						className="w-5 h-5"
+						style={{ color: 'var(--color-accent-blue)' }}
+					/>
+				);
 		}
 	};
 
@@ -479,30 +501,32 @@ function StickyFileHeader({
 		switch (type) {
 			case 'new':
 				return (
-					<Badge color="green" size="1">
-						Added
-					</Badge>
+					<span className="status-pill status-pill-added">Added</span>
 				);
 			case 'deleted':
 				return (
-					<Badge color="red" size="1">
+					<span className="status-pill status-pill-deleted">
 						Deleted
-					</Badge>
+					</span>
 				);
 			case 'rename-pure':
 				return (
-					<Badge color="amber" size="1">
+					<span className="status-pill status-pill-renamed">
 						Renamed
-					</Badge>
+					</span>
 				);
 			case 'rename-changed':
 				return (
-					<Badge color="amber" size="1">
+					<span className="status-pill status-pill-renamed">
 						Renamed & Modified
-					</Badge>
+					</span>
 				);
 			default:
-				return null;
+				return (
+					<span className="status-pill status-pill-modified">
+						Modified
+					</span>
+				);
 		}
 	};
 
@@ -513,25 +537,45 @@ function StickyFileHeader({
 	};
 
 	return (
-		<div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-			<div className="flex items-center gap-2 min-w-0">
+		<div
+			className="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
+			style={{
+				backgroundColor: 'var(--color-surface)',
+				borderBottom: '1px solid var(--color-border)',
+			}}
+		>
+			<div className="flex items-center gap-3 min-w-0">
 				{getIcon(changeType)}
-				<Text size="2" className="font-mono truncate">
-					{fileName}
-				</Text>
-				{fileDiff.prevName && fileDiff.prevName !== fileName && (
-					<Text size="1" color="gray">
-						← {fileDiff.prevName}
+				<div className="flex items-center gap-2 min-w-0">
+					<Text
+						size="2"
+						weight="medium"
+						className="font-mono truncate"
+					>
+						{fileName}
 					</Text>
-				)}
+					{fileDiff.prevName && fileDiff.prevName !== fileName && (
+						<Text
+							size="1"
+							className="shrink-0"
+							style={{ color: 'var(--color-text-muted)' }}
+						>
+							← {fileDiff.prevName}
+						</Text>
+					)}
+				</div>
 				{getLabel(changeType)}
 			</div>
-			<div className="relative flex items-center gap-2">
+			<div className="flex items-center gap-1">
 				{hunks.length > 0 && (
 					<DropdownMenu.Root>
 						<Tooltip content="Comment on a hunk">
 							<DropdownMenu.Trigger>
-								<Button variant="ghost" size="1">
+								<Button
+									variant="ghost"
+									size="1"
+									className="btn-press"
+								>
 									<VscComment aria-hidden="true" />
 									Hunk ({hunks.length})
 								</Button>
@@ -552,7 +596,12 @@ function StickyFileHeader({
 					</DropdownMenu.Root>
 				)}
 				<Tooltip content="Comment on entire file">
-					<Button variant="ghost" size="1" onClick={onAddComment}>
+					<Button
+						variant="ghost"
+						size="1"
+						onClick={onAddComment}
+						className="btn-press"
+					>
 						<VscComment aria-hidden="true" />
 						File
 					</Button>

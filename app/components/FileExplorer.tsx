@@ -38,18 +38,18 @@ interface FolderNode {
 	totalDeletions: number;
 }
 
-const statusIcons = {
-	added: VscNewFile,
-	modified: VscEdit,
-	deleted: VscTrash,
-	renamed: VscEdit,
+const statusLabels = {
+	added: 'A',
+	modified: 'M',
+	deleted: 'D',
+	renamed: 'R',
 };
 
-const statusColors = {
-	added: 'text-green-500',
-	modified: 'text-yellow-500',
-	deleted: 'text-red-500',
-	renamed: 'text-blue-500',
+const statusPillClasses = {
+	added: 'status-pill status-pill-added',
+	modified: 'status-pill status-pill-modified',
+	deleted: 'status-pill status-pill-deleted',
+	renamed: 'status-pill status-pill-renamed',
 };
 
 function getFileIcon(fileName: string) {
@@ -71,6 +71,17 @@ function getFileIcon(fileName: string) {
 			return VscSymbolMisc;
 		default:
 			return VscFile;
+	}
+}
+
+function getStatusIcon(status: DiffFile['status']) {
+	switch (status) {
+		case 'added':
+			return VscNewFile;
+		case 'deleted':
+			return VscTrash;
+		default:
+			return VscEdit;
 	}
 }
 
@@ -190,63 +201,63 @@ export function FileExplorer({
 			return aName.localeCompare(bName);
 		});
 
+		const indent = depth * 16 + 12;
+
 		return (
-			<div key={node.path || 'root'}>
+			<div key={node.path || 'root'} className="relative">
+				{/* Tree indent guide */}
+				{depth > 0 && (
+					<div
+						className="tree-indent-guide"
+						style={{ left: indent - 8 }}
+					/>
+				)}
+
 				{depth > 0 && (
 					<button
 						onClick={() => toggleFolder(node.path)}
-						className="w-full px-2 py-1.5 flex items-center gap-1 text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-						style={{ paddingLeft: `${depth * 12 + 8}px` }}
+						className="tree-item group"
+						style={{ paddingLeft: indent }}
 						role="treeitem"
 						aria-expanded={isExpanded}
 						title={node.path}
 					>
-						{isExpanded ? (
-							<VscChevronDown
-								className="w-4 h-4 text-gray-400 shrink-0"
-								aria-hidden="true"
-							/>
-						) : (
-							<VscChevronRight
-								className="w-4 h-4 text-gray-400 shrink-0"
-								aria-hidden="true"
-							/>
-						)}
-						{isExpanded ? (
-							<VscFolderOpened
-								className="w-4 h-4 text-yellow-500 shrink-0"
-								aria-hidden="true"
-							/>
-						) : (
-							<VscFolder
-								className="w-4 h-4 text-yellow-500 shrink-0"
-								aria-hidden="true"
-							/>
-						)}
-						<Text
-							size="2"
-							weight="medium"
-							className="truncate flex-1"
-						>
-							{node.name}
-						</Text>
-						<div className="flex items-center gap-1 shrink-0">
+						<span className="flex items-center gap-1.5 flex-1 min-w-0">
+							{isExpanded ? (
+								<VscChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+							) : (
+								<VscChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+							)}
+							{isExpanded ? (
+								<VscFolderOpened className="w-4 h-4 text-amber-500 shrink-0" />
+							) : (
+								<VscFolder className="w-4 h-4 text-amber-500 shrink-0" />
+							)}
+							<Text
+								size="2"
+								weight="medium"
+								className="truncate flex-1 text-left"
+							>
+								{node.name}
+							</Text>
+						</span>
+						<span className="flex items-center gap-1.5 shrink-0 opacity-60 group-hover:opacity-100">
 							{node.totalAdditions > 0 && (
-								<Text size="1" color="green">
+								<Text size="1" className="text-green-500">
 									+{node.totalAdditions}
 								</Text>
 							)}
 							{node.totalDeletions > 0 && (
-								<Text size="1" color="red">
+								<Text size="1" className="text-red-500">
 									-{node.totalDeletions}
 								</Text>
 							)}
-						</div>
+						</span>
 					</button>
 				)}
 
 				{(isExpanded || depth === 0) && (
-					<>
+					<div>
 						{sortedChildren.map((child) =>
 							renderFolder(child, depth + 1),
 						)}
@@ -254,84 +265,117 @@ export function FileExplorer({
 						{sortedFiles.map((file) => {
 							const fileName =
 								file.path.split('/').pop() || file.path;
-							const StatusIcon = statusIcons[file.status];
+							const StatusIcon = getStatusIcon(file.status);
 							const FileIcon = getFileIcon(fileName);
-							const colorClass = statusColors[file.status];
+							const isSelected = selectedFile === file.path;
+							const fileIndent = (depth + 1) * 16 + 12;
 
 							return (
 								<button
 									key={file.path}
 									onClick={() => onSelectFile(file.path)}
-									className={`w-full px-2 py-1.5 flex items-center gap-1 text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
-										selectedFile === file.path
-											? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-blue-500'
-											: ''
-									}`}
-									style={{
-										paddingLeft: `${(depth + 1) * 12 + 8}px`,
-									}}
+									className={`tree-item group ${isSelected ? 'tree-item-selected' : ''}`}
+									style={{ paddingLeft: fileIndent }}
 									role="treeitem"
-									aria-selected={selectedFile === file.path}
+									aria-selected={isSelected}
 									title={file.path}
 								>
-									<StatusIcon
-										className={`w-3 h-3 shrink-0 ${colorClass}`}
-										aria-hidden="true"
-									/>
-									<FileIcon
-										className="w-4 h-4 text-gray-400 shrink-0"
-										aria-hidden="true"
-									/>
-									<Text size="2" className="truncate flex-1">
-										{fileName}
-									</Text>
-									<div className="flex items-center gap-1 shrink-0">
-										{file.additions > 0 && (
-											<Text size="1" color="green">
-												+{file.additions}
-											</Text>
-										)}
-										{file.deletions > 0 && (
-											<Text size="1" color="red">
-												-{file.deletions}
-											</Text>
-										)}
-									</div>
+									<span className="flex items-center gap-1.5 flex-1 min-w-0">
+										<StatusIcon
+											className={`w-3.5 h-3.5 shrink-0 ${
+												file.status === 'added'
+													? 'text-green-500'
+													: file.status === 'deleted'
+														? 'text-red-500'
+														: file.status ===
+															  'renamed'
+															? 'text-blue-500'
+															: 'text-amber-500'
+											}`}
+											aria-hidden="true"
+										/>
+										<FileIcon
+											className="w-4 h-4 shrink-0"
+											style={{
+												color: 'var(--color-text-muted)',
+											}}
+											aria-hidden="true"
+										/>
+										<Text
+											size="2"
+											className="truncate flex-1 text-left"
+										>
+											{fileName}
+										</Text>
+									</span>
+									<span className="flex items-center gap-1.5 shrink-0">
+										<span
+											className={statusPillClasses[file.status]}
+											aria-label={file.status}
+										>
+											{statusLabels[file.status]}
+										</span>
+										<span className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
+											{file.additions > 0 && (
+												<Text
+													size="1"
+													className="text-green-500"
+												>
+													+{file.additions}
+												</Text>
+											)}
+											{file.deletions > 0 && (
+												<Text
+													size="1"
+													className="text-red-500"
+												>
+													-{file.deletions}
+												</Text>
+											)}
+										</span>
+									</span>
 								</button>
 							);
 						})}
-					</>
+					</div>
 				)}
 			</div>
 		);
 	};
 
 	return (
-		<div className="py-2">
-			<div className="px-4 py-2 flex items-center justify-between">
-				<Text
-					size="1"
-					weight="bold"
-					color="gray"
-					className="uppercase tracking-wider"
-				>
-					Changed Files ({files.length})
-				</Text>
-				<div className="flex items-center gap-1">
+		<div className="h-full flex flex-col">
+			{/* Sticky header */}
+			<div className="panel-header sticky top-0 z-10">
+				<span>Changed Files ({files.length})</span>
+				<span className="flex items-center gap-2">
 					{folderTree.totalAdditions > 0 && (
-						<Text size="1" color="green">
+						<Text size="1" className="text-green-500">
 							+{folderTree.totalAdditions}
 						</Text>
 					)}
 					{folderTree.totalDeletions > 0 && (
-						<Text size="1" color="red">
+						<Text size="1" className="text-red-500">
 							-{folderTree.totalDeletions}
 						</Text>
 					)}
-				</div>
+				</span>
 			</div>
-			<div role="tree" aria-label="Changed files">
+
+			{/* File tree */}
+			<div role="tree" aria-label="Changed files" className="flex-1 py-1">
 				{renderFolder(folderTree)}
+			</div>
+
+			{/* Bottom summary */}
+			<div
+				className="px-4 py-2 text-xs border-t"
+				style={{
+					borderColor: 'var(--color-border)',
+					color: 'var(--color-text-muted)',
+				}}
+			>
+				{files.length} file{files.length !== 1 ? 's' : ''} changed
 			</div>
 		</div>
 	);

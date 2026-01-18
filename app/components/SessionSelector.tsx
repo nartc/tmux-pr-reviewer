@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useId, useState } from 'react';
 import {
 	VscBeaker,
+	VscCircleFilled,
 	VscRefresh,
 	VscTerminal,
 	VscWarning,
@@ -21,6 +22,17 @@ interface SessionSelectorProps {
 	onSelectSession: (sessionName: string) => void;
 	repoPath?: string;
 }
+
+// Agent icons mapping
+const agentIcons: Record<string, string> = {
+	claude: 'C',
+	opencode: 'O',
+	aider: 'A',
+	cursor: 'Cu',
+	copilot: 'Co',
+	gemini: 'G',
+	codex: 'Cx',
+};
 
 export function SessionSelector({
 	selectedSession,
@@ -177,7 +189,13 @@ export function SessionSelector({
 
 	if (!available) {
 		return (
-			<div className="flex items-center gap-2 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 rounded">
+			<div
+				className="flex items-center gap-2 px-3 py-2 text-sm rounded-md"
+				style={{
+					backgroundColor: 'rgba(245, 158, 11, 0.1)',
+					color: 'var(--color-warning-amber)',
+				}}
+			>
 				<VscWarning aria-hidden="true" />
 				<Text size="2">tmux not available</Text>
 			</div>
@@ -189,11 +207,22 @@ export function SessionSelector({
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
 					<button
-						className={`flex items-center gap-2 px-3 py-2 text-sm border rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors min-w-[200px] ${
+						className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors min-w-[180px] ${
 							selectedSessionData?.multipleAgents
-								? 'border-amber-500 ring-2 ring-amber-500/50'
-								: 'border-gray-300 dark:border-gray-600'
+								? 'ring-2'
+								: ''
 						}`}
+						style={{
+							backgroundColor: 'var(--color-surface)',
+							borderColor: selectedSessionData?.multipleAgents
+								? 'var(--color-warning-amber)'
+								: 'var(--color-border)',
+							border: '1px solid var(--color-border)',
+							...(selectedSessionData?.multipleAgents && {
+								borderColor: 'var(--color-warning-amber)',
+								boxShadow: `0 0 0 2px rgba(245, 158, 11, 0.2)`,
+							}),
+						}}
 						disabled={loading}
 						aria-label={
 							loading
@@ -203,11 +232,25 @@ export function SessionSelector({
 									: 'Select a tmux session'
 						}
 					>
+						{/* Status indicator */}
+						<VscCircleFilled
+							className={`w-2 h-2 shrink-0 ${loading ? 'animate-pulse-dot' : ''}`}
+							style={{
+								color: selectedSessionData
+									? 'var(--color-success-green)'
+									: 'var(--color-text-muted)',
+							}}
+						/>
+
 						<VscTerminal
-							className="w-4 h-4 text-gray-400"
+							className="w-4 h-4 shrink-0"
+							style={{ color: 'var(--color-text-muted)' }}
 							aria-hidden="true"
 						/>
-						<span className="flex-1 text-left truncate">
+						<span
+							className="flex-1 text-left truncate"
+							style={{ color: 'var(--color-text-primary)' }}
+						>
 							{loading
 								? 'Loading...'
 								: selectedSessionData
@@ -216,13 +259,15 @@ export function SessionSelector({
 						</span>
 						{selectedSessionData?.multipleAgents && (
 							<Badge color="amber" size="1">
-								Multiple agents
+								Multi
 							</Badge>
 						)}
 						{selectedSessionData?.detectedProcess &&
 							!selectedSessionData?.multipleAgents && (
 								<Badge color="green" size="1">
-									{selectedSessionData.detectedProcess}
+									{agentIcons[
+										selectedSessionData.detectedProcess
+									] || selectedSessionData.detectedProcess}
 								</Badge>
 							)}
 					</button>
@@ -242,24 +287,36 @@ export function SessionSelector({
 									}
 								>
 									<div className="flex items-center justify-between w-full gap-2">
-										<div className="min-w-0">
-											<Text
-												size="2"
-												weight="medium"
-												className="truncate block"
-											>
-												{session.name}
-											</Text>
-											<Text
-												size="1"
-												color="gray"
-												className="truncate block"
-											>
-												{session.workingDir}
-											</Text>
+										<div className="flex items-center gap-2 min-w-0">
+											<VscCircleFilled
+												className="w-2 h-2 shrink-0"
+												style={{
+													color: 'var(--color-success-green)',
+												}}
+											/>
+											<div className="min-w-0">
+												<Text
+													size="2"
+													weight="medium"
+													className="truncate block"
+												>
+													{session.name}
+												</Text>
+												<Text
+													size="1"
+													className="truncate block"
+													style={{
+														color: 'var(--color-text-muted)',
+													}}
+												>
+													{session.workingDir}
+												</Text>
+											</div>
 										</div>
 										<Badge color="green" size="1">
-											{session.detectedProcess}
+											{agentIcons[
+												session.detectedProcess!
+											] || session.detectedProcess}
 										</Badge>
 									</div>
 								</DropdownMenu.Item>
@@ -270,9 +327,14 @@ export function SessionSelector({
 
 					<DropdownMenu.Label>All Sessions</DropdownMenu.Label>
 					{sessions.length === 0 ? (
-						<Text size="2" color="gray" className="px-2 py-2">
-							No sessions found
-						</Text>
+						<div className="px-2 py-3 text-center">
+							<Text
+								size="2"
+								style={{ color: 'var(--color-text-muted)' }}
+							>
+								No sessions found
+							</Text>
+						</div>
 					) : (
 						sessions
 							.filter((s) => !s.detectedProcess)
@@ -283,21 +345,31 @@ export function SessionSelector({
 										onSelectSession(session.name)
 									}
 								>
-									<div className="min-w-0">
-										<Text
-											size="2"
-											weight="medium"
-											className="truncate block"
-										>
-											{session.name}
-										</Text>
-										<Text
-											size="1"
-											color="gray"
-											className="truncate block"
-										>
-											{session.workingDir}
-										</Text>
+									<div className="flex items-center gap-2 min-w-0">
+										<VscCircleFilled
+											className="w-2 h-2 shrink-0"
+											style={{
+												color: 'var(--color-text-muted)',
+											}}
+										/>
+										<div className="min-w-0">
+											<Text
+												size="2"
+												weight="medium"
+												className="truncate block"
+											>
+												{session.name}
+											</Text>
+											<Text
+												size="1"
+												className="truncate block"
+												style={{
+													color: 'var(--color-text-muted)',
+												}}
+											>
+												{session.workingDir}
+											</Text>
+										</div>
 									</div>
 								</DropdownMenu.Item>
 							))
@@ -312,6 +384,7 @@ export function SessionSelector({
 					onClick={fetchSessions}
 					disabled={loading}
 					aria-label="Refresh sessions"
+					className="btn-press"
 				>
 					<VscRefresh
 						className={loading ? 'animate-spin' : ''}
@@ -320,7 +393,7 @@ export function SessionSelector({
 				</IconButton>
 			</Tooltip>
 
-			<Tooltip content="Send test message to session">
+			<Tooltip content="Test session">
 				<IconButton
 					variant="ghost"
 					size="1"
@@ -328,6 +401,7 @@ export function SessionSelector({
 					onClick={handleTestSession}
 					disabled={!selectedSession || testPending}
 					aria-label="Test session"
+					className="btn-press"
 				>
 					<VscBeaker
 						className={testPending ? 'animate-pulse' : ''}
