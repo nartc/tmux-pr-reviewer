@@ -217,6 +217,32 @@ export default function Review() {
 		}
 	}, [selectedTmuxSession, stagedComments, revalidator]);
 
+	const handleProcessComments = useCallback(async (commentIds: string[]) => {
+		if (commentIds.length === 0) return null;
+
+		try {
+			const formData = new URLSearchParams();
+			formData.append('intent', 'process');
+			commentIds.forEach((id) => formData.append('commentIds', id));
+
+			const response = await fetch('/api/process', {
+				method: 'POST',
+				body: formData,
+			});
+
+			const result = await response.json();
+			if (result.error) {
+				console.error('Failed to process comments:', result.error);
+				return null;
+			}
+
+			return result.processedText as string;
+		} catch (error) {
+			console.error('Failed to process comments:', error);
+			return null;
+		}
+	}, []);
+
 	const handleSelectTmuxSession = useCallback((sessionName: string) => {
 		setSelectedTmuxSession(sessionName);
 	}, []);
@@ -271,6 +297,7 @@ export default function Review() {
 			onSelectTmuxSession={handleSelectTmuxSession}
 			onSendNow={handleSendNow}
 			onSendAllStaged={handleSendAllStaged}
+			onProcessComments={handleProcessComments}
 			repoPath={repoPath}
 		/>
 	);

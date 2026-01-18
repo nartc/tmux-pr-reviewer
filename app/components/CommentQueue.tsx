@@ -1,10 +1,11 @@
 import { Button, Checkbox, Text } from '@radix-ui/themes';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
 	VscCheck,
 	VscChevronDown,
 	VscChevronRight,
 	VscInbox,
+	VscLightbulb,
 	VscSend,
 } from 'react-icons/vsc';
 import { useAsyncAction } from '../lib/use-async-action';
@@ -21,6 +22,7 @@ interface CommentQueueProps {
 	onSelectTmuxSession: (sessionName: string) => void;
 	onSendNow?: (comment: Comment) => void;
 	onSendAllStaged?: () => void;
+	onProcessComments?: (commentIds: string[]) => Promise<string | null>;
 	repoPath?: string;
 }
 
@@ -33,12 +35,15 @@ export function CommentQueue({
 	onSelectTmuxSession,
 	onSendNow,
 	onSendAllStaged,
+	onProcessComments,
 	repoPath,
 }: CommentQueueProps) {
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [queueExpanded, setQueueExpanded] = useState(true);
 	const [stagedExpanded, setStagedExpanded] = useState(true);
 	const [sentExpanded, setSentExpanded] = useState(true);
+	const [isProcessing, setIsProcessing] = useState(false);
+	const [processedText, setProcessedText] = useState<string | null>(null);
 
 	const { submit, isPending: isStaging } = useAsyncAction({
 		successMessage: 'Comments staged',
@@ -72,6 +77,24 @@ export function CommentQueue({
 
 		submit(formData, { method: 'POST', action: '/api/comments' });
 	};
+
+	const handleProcessStaged = useCallback(async () => {
+		if (!onProcessComments || stagedComments.length === 0) return;
+
+		setIsProcessing(true);
+		setProcessedText(null);
+
+		try {
+			const result = await onProcessComments(
+				stagedComments.map((c) => c.id),
+			);
+			if (result) {
+				setProcessedText(result);
+			}
+		} finally {
+			setIsProcessing(false);
+		}
+	}, [onProcessComments, stagedComments]);
 
 	return (
 		<div className="h-full flex flex-col">
@@ -265,8 +288,20 @@ export function CommentQueue({
 							</div>
 						) : (
 							<>
-								{/* Send all button */}
-								<div className="mb-3 pt-2">
+								{/* Action buttons */}
+								<div className="mb-3 pt-2 flex items-center gap-2">
+									<Button
+										size="2"
+										variant="soft"
+										className="w-full btn-press"
+										onClick={handleProcessStaged}
+										disabled={isProcessing}
+									>
+										<VscLightbulb aria-hidden="true" />
+										{isProcessing
+											? 'Processing...'
+											: 'Process with AI'}
+									</Button>
 									<Button
 										size="2"
 										className="w-full btn-press"
@@ -292,6 +327,30 @@ export function CommentQueue({
 										</Text>
 									)}
 								</div>
+
+								{/* Processed text output */}
+								{processedText && (
+									<div
+										className="mb-3 p-3 rounded-md text-sm whitespace-pre-wrap"
+										style={{
+											backgroundColor:
+												'var(--color-bg-secondary)',
+											border: '1px solid var(--color-border)',
+										}}
+									>
+										<Text
+											size="1"
+											weight="medium"
+											className="mb-2 block"
+											style={{
+												color: 'var(--color-text-secondary)',
+											}}
+										>
+											AI Processed Output
+										</Text>
+										{processedText}
+									</div>
+								)}
 
 								{/* Staged comment list */}
 								<div className="space-y-2">
