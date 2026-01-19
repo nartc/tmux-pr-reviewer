@@ -1,4 +1,5 @@
 import {
+	Badge,
 	Button,
 	Checkbox,
 	IconButton,
@@ -254,8 +255,8 @@ export function CommentQueue({
 
 			{/* General comment form */}
 			{showGeneralForm && (
-				<div className="px-4 pb-4 border-b border-theme animate-slide-in">
-					<Text size="1" className="text-theme-secondary mb-2 block">
+				<div className="px-4 pb-4 border-b border-theme animate-slide-in space-y-2">
+					<Text size="1" className="text-theme-secondary">
 						General comment (not tied to a specific line)
 					</Text>
 					<TextArea
@@ -269,7 +270,7 @@ export function CommentQueue({
 						aria-label="General comment text"
 						className="bg-theme-bg border-theme"
 					/>
-					<div className="flex items-center justify-end mt-2 gap-2">
+					<div className="flex items-center justify-end gap-2">
 						<Button
 							variant="ghost"
 							size="1"
@@ -326,14 +327,17 @@ export function CommentQueue({
 						<Text size="2" weight="bold">
 							Queued
 						</Text>
-						<span className="count-badge">
+						<Badge variant="soft" color="gray" size="1">
 							{queuedComments.length}
-						</span>
+						</Badge>
 					</div>
 				</button>
 
 				{queueExpanded && (
-					<div id="queued-comments-section" className="px-4 pb-4">
+					<div
+						id="queued-comments-section"
+						className="px-4 pb-4 space-y-3"
+					>
 						{queuedComments.length === 0 ? (
 							<div className="flex flex-col items-center py-6 gap-2">
 								<VscInbox className="w-8 h-8 text-theme-muted" />
@@ -347,7 +351,7 @@ export function CommentQueue({
 						) : (
 							<>
 								{/* Selection controls */}
-								<div className="flex items-center justify-between mb-3 pt-2">
+								<div className="flex items-center justify-between pt-2">
 									<Button
 										variant="ghost"
 										size="1"
@@ -359,17 +363,15 @@ export function CommentQueue({
 											: 'Select all'}
 									</Button>
 									{selectedIds.size > 0 && (
-										<div className="flex items-center gap-2">
-											<Button
-												variant="soft"
-												size="1"
-												onClick={handleStageSelected}
-												disabled={isStaging}
-												className="btn-press"
-											>
-												Stage ({selectedIds.size})
-											</Button>
-										</div>
+										<Button
+											variant="soft"
+											size="1"
+											onClick={handleStageSelected}
+											disabled={isStaging}
+											className="btn-press"
+										>
+											Stage ({selectedIds.size})
+										</Button>
 									)}
 								</div>
 
@@ -423,9 +425,9 @@ export function CommentQueue({
 						<Text size="2" weight="bold">
 							Staged
 						</Text>
-						<span className="count-badge">
+						<Badge variant="soft" color="gray" size="1">
 							{stagedComments.length}
-						</span>
+						</Badge>
 					</div>
 					{stagedComments.length > 0 && (
 						<VscCheck className="w-4 h-4 text-zinc-500" />
@@ -433,7 +435,10 @@ export function CommentQueue({
 				</button>
 
 				{stagedExpanded && (
-					<div id="staged-comments-section" className="px-4 pb-4">
+					<div
+						id="staged-comments-section"
+						className="px-4 pb-4 space-y-3"
+					>
 						{stagedComments.length === 0 ? (
 							<div className="flex flex-col items-center py-6 gap-2">
 								<Text size="2" className="text-theme-muted">
@@ -446,7 +451,7 @@ export function CommentQueue({
 						) : (
 							<>
 								{/* Action buttons */}
-								<div className="mb-3 pt-2 flex items-center gap-2">
+								<div className="pt-2 flex items-center gap-2">
 									<Button
 										size="2"
 										variant="soft"
@@ -471,11 +476,11 @@ export function CommentQueue({
 
 								{/* Processed text output */}
 								{processedText && (
-									<div className="mb-3 p-3 rounded-md text-sm whitespace-pre-wrap bg-theme-bg-secondary border border-theme">
+									<div className="p-3 rounded-md text-sm whitespace-pre-wrap bg-theme-bg-secondary border border-theme space-y-2">
 										<Text
 											size="1"
 											weight="medium"
-											className="mb-2 block text-theme-secondary"
+											className="text-theme-secondary"
 										>
 											AI Processed Output
 										</Text>
@@ -517,9 +522,9 @@ export function CommentQueue({
 						<Text size="2" weight="bold">
 							Sent
 						</Text>
-						<span className="count-badge">
+						<Badge variant="soft" color="gray" size="1">
 							{sentComments.length}
-						</span>
+						</Badge>
 					</div>
 				</button>
 
@@ -572,9 +577,9 @@ export function CommentQueue({
 						<Text size="2" weight="bold">
 							Resolved
 						</Text>
-						<span className="count-badge">
+						<Badge variant="soft" color="gray" size="1">
 							{resolvedComments.length}
-						</span>
+						</Badge>
 					</div>
 				</button>
 

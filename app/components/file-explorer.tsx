@@ -1,4 +1,4 @@
-import { Text } from '@radix-ui/themes';
+import { Badge, Text } from '@radix-ui/themes';
 import { useEffect, useMemo, useState } from 'react';
 import {
 	VscChevronDown,
@@ -45,12 +45,12 @@ const statusLabels = {
 	renamed: 'R',
 };
 
-const statusPillClasses = {
-	added: 'status-pill status-pill-added',
-	modified: 'status-pill status-pill-modified',
-	deleted: 'status-pill status-pill-deleted',
-	renamed: 'status-pill status-pill-renamed',
-};
+const statusColors = {
+	added: 'green',
+	modified: 'amber',
+	deleted: 'red',
+	renamed: 'blue',
+} as const;
 
 function getFileIcon(fileName: string) {
 	const ext = fileName.split('.').pop()?.toLowerCase();
@@ -306,14 +306,14 @@ export function FileExplorer({
 										</Text>
 									</span>
 									<span className="flex items-center gap-1.5 shrink-0">
-										<span
-											className={
-												statusPillClasses[file.status]
-											}
+										<Badge
+											color={statusColors[file.status]}
+											variant="soft"
+											size="1"
 											aria-label={file.status}
 										>
 											{statusLabels[file.status]}
-										</span>
+										</Badge>
 										<span className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
 											{file.additions > 0 && (
 												<Text
@@ -346,8 +346,10 @@ export function FileExplorer({
 		<div className="h-full flex flex-col">
 			{/* Sticky header */}
 			<div className="panel-header sticky top-0 z-10">
-				<span>Changed Files ({files.length})</span>
-				<span className="flex items-center gap-2">
+				<Text size="2" weight="medium">
+					Changed Files ({files.length})
+				</Text>
+				<div className="flex items-center gap-2">
 					{folderTree.totalAdditions > 0 && (
 						<Text size="1" className="text-green-500">
 							+{folderTree.totalAdditions}
@@ -358,7 +360,7 @@ export function FileExplorer({
 							-{folderTree.totalDeletions}
 						</Text>
 					)}
-				</span>
+				</div>
 			</div>
 
 			{/* File tree */}

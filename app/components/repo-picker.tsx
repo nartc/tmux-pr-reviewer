@@ -88,28 +88,21 @@ export function RepoPicker({ onSelect, onCancel }: RepoPickerProps) {
 								role="option"
 								aria-selected={false}
 							>
-								<button
+								<Button
+									variant="ghost"
 									onClick={() => onSelect(repo.path)}
-									className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+									className="w-full justify-start px-4 py-3 h-auto"
 								>
 									<VscRepo className="w-5 h-5 text-gray-400 shrink-0" />
-									<div className="min-w-0">
-										<Text
-											size="2"
-											weight="medium"
-											className="truncate block"
-										>
+									<div className="min-w-0 flex flex-col items-start gap-0.5">
+										<Text size="2" weight="medium" truncate>
 											{repo.name}
 										</Text>
-										<Text
-											size="1"
-											color="gray"
-											className="truncate block"
-										>
+										<Text size="1" color="gray" truncate>
 											{repo.path}
 										</Text>
 									</div>
-								</button>
+								</Button>
 							</li>
 						))}
 					</ul>

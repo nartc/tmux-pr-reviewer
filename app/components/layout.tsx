@@ -1,4 +1,4 @@
-import { Text } from '@radix-ui/themes';
+import { Separator, Text } from '@radix-ui/themes';
 import {
 	useCallback,
 	useEffect,
@@ -138,10 +138,10 @@ export function Layout({
 					</div>
 					{/* Breadcrumb / Header content */}
 					{header && (
-						<div className="breadcrumb">
-							<span className="breadcrumb-separator">/</span>
+						<>
+							<Separator orientation="vertical" size="1" />
 							{header}
-						</div>
+						</>
 					)}
 				</div>
 				<div className="flex items-center gap-2">{headerActions}</div>

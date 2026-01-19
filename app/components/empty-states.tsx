@@ -28,7 +28,7 @@ function EmptyState({ icon, title, description, action }: EmptyStateProps) {
 					</Text>
 				)}
 			</div>
-			{action && <div className="mt-2">{action}</div>}
+			{action}
 		</div>
 	);
 }

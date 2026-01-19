@@ -54,16 +54,18 @@ export function BaseBranchSelector({
 	return (
 		<Dialog.Root open={open} onOpenChange={setOpen}>
 			<Dialog.Trigger>
-				<button
-					className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+				<Button
+					variant="ghost"
+					size="1"
+					className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
 					aria-label={`Change base branch (currently ${currentBaseBranch})`}
 				>
 					<VscSourceControl aria-hidden="true" />
-					<span>{currentBaseBranch}</span>
-				</button>
+					{currentBaseBranch}
+				</Button>
 			</Dialog.Trigger>
 
-			<Dialog.Content maxWidth="350px">
+			<Dialog.Content maxWidth="350px" className="space-y-4">
 				<Dialog.Title>Select Base Branch</Dialog.Title>
 
 				{loading ? (
@@ -72,34 +74,35 @@ export function BaseBranchSelector({
 					</div>
 				) : (
 					<div
-						className="space-y-2 my-4"
+						className="space-y-1"
 						role="radiogroup"
 						aria-label="Select base branch"
 					>
 						{branches.map((branch) => (
-							<button
+							<Button
 								key={branch}
+								variant="ghost"
 								onClick={() => setSelectedBranch(branch)}
 								role="radio"
 								aria-checked={selectedBranch === branch}
-								className={`w-full px-3 py-2 text-left rounded flex items-center justify-between transition-colors ${
+								className={`w-full justify-between ${
 									selectedBranch === branch
-										? 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300'
-										: 'hover:bg-gray-100 dark:hover:bg-gray-800'
+										? 'bg-zinc-100 dark:bg-zinc-800/50'
+										: ''
 								}`}
 							>
 								<Text size="2">{branch}</Text>
 								{selectedBranch === branch && (
 									<VscCheck aria-hidden="true" />
 								)}
-							</button>
+							</Button>
 						))}
 					</div>
 				)}
 
 				{/* Custom branch input */}
-				<div className="mb-4">
-					<Text size="2" weight="medium" className="mb-2 block">
+				<div className="space-y-2">
+					<Text size="2" weight="medium">
 						Or enter a custom branch:
 					</Text>
 					<TextField.Root

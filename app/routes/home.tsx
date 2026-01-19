@@ -1,4 +1,12 @@
-import { Button, Dialog, Text } from '@radix-ui/themes';
+import {
+	Badge,
+	Button,
+	Dialog,
+	Heading,
+	IconButton,
+	Text,
+	Tooltip,
+} from '@radix-ui/themes';
 import { Effect } from 'effect';
 import { useCallback, useState } from 'react';
 import {
@@ -120,13 +128,13 @@ export default function Home() {
 
 	return (
 		<SimpleLayout>
-			<div className="max-w-4xl mx-auto p-8">
+			<div className="max-w-4xl mx-auto p-8 space-y-8">
 				{/* Header */}
-				<div className="flex items-center justify-between mb-8">
-					<div>
-						<h2 className="text-2xl font-bold text-theme-primary">
+				<div className="flex items-center justify-between">
+					<div className="space-y-1">
+						<Heading size="5" className="text-theme-primary">
 							Repositories
-						</h2>
+						</Heading>
 						<Text size="2" className="text-theme-secondary">
 							{repos.length === 0
 								? 'Add a repository to get started'
@@ -179,28 +187,31 @@ function RepoCard({ repo }: { repo: RepoWithPath }) {
 					<div className="p-2 rounded-lg shrink-0 bg-theme-surface-hover">
 						<VscRepo className="w-5 h-5 text-theme-secondary" />
 					</div>
-					<div className="min-w-0 flex-1">
-						<h3 className="font-semibold truncate text-theme-primary">
+					<div className="min-w-0 flex-1 space-y-1">
+						<Heading
+							size="3"
+							truncate
+							className="text-theme-primary"
+						>
 							{repo.name}
-						</h3>
-						<div className="flex items-center gap-2 mt-1">
-							{repo.remote_url ? (
-								<Text
-									size="1"
-									className="truncate text-theme-muted"
-								>
-									{repo.remote_url}
-								</Text>
-							) : (
-								<Text size="1" className="text-theme-muted">
-									Local repository
-								</Text>
-							)}
-						</div>
+						</Heading>
+						{repo.remote_url ? (
+							<Text
+								size="1"
+								truncate
+								className="text-theme-muted"
+							>
+								{repo.remote_url}
+							</Text>
+						) : (
+							<Text size="1" className="text-theme-muted">
+								Local repository
+							</Text>
+						)}
 						{primaryPath && (
-							<div className="flex items-center gap-1 mt-2 text-theme-muted">
+							<div className="flex items-center gap-1 text-theme-muted">
 								<VscGitCommit className="w-3.5 h-3.5" />
-								<Text size="1" className="truncate">
+								<Text size="1" truncate>
 									{primaryPath}
 								</Text>
 							</div>
@@ -236,36 +247,42 @@ function RepoCard({ repo }: { repo: RepoWithPath }) {
 					<Form method="POST" action="/?index">
 						<input type="hidden" name="intent" value="delete" />
 						<input type="hidden" name="repoId" value={repo.id} />
-						<button
-							type="submit"
-							className="p-2 rounded-md transition-colors btn-press text-theme-muted hover:text-theme-danger hover:bg-red-500/10"
-							title="Delete repository"
-						>
-							<VscTrash className="w-4 h-4" />
-						</button>
+						<Tooltip content="Delete repository">
+							<IconButton
+								type="submit"
+								variant="ghost"
+								color="red"
+								className="btn-press"
+								aria-label="Delete repository"
+							>
+								<VscTrash className="w-4 h-4" />
+							</IconButton>
+						</Tooltip>
 					</Form>
 				</div>
 			</div>
 
 			{/* Multiple paths indicator */}
 			{repo.paths.length > 1 && (
-				<div className="mt-3 pt-3 theme-divider">
-					<Text size="1" className="mb-2 block text-theme-muted">
+				<div className="pt-3 theme-divider space-y-2">
+					<Text size="1" className="text-theme-muted">
 						{repo.paths.length} paths linked
 					</Text>
 					<div className="flex flex-wrap gap-2">
 						{repo.paths.slice(0, 3).map((p) => (
-							<span
+							<Badge
 								key={p.id}
-								className="text-xs px-2 py-1 rounded bg-theme-surface-hover text-theme-secondary"
+								variant="soft"
+								color="gray"
+								size="1"
 							>
 								{p.path.split('/').pop()}
-							</span>
+							</Badge>
 						))}
 						{repo.paths.length > 3 && (
-							<span className="text-xs px-2 py-1 rounded bg-theme-surface-hover text-theme-muted">
+							<Badge variant="soft" color="gray" size="1">
 								+{repo.paths.length - 3} more
-							</span>
+							</Badge>
 						)}
 					</div>
 				</div>

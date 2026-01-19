@@ -1,3 +1,4 @@
+import { Separator, Text } from '@radix-ui/themes';
 import { Effect } from 'effect';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { VscArrowLeft } from 'react-icons/vsc';
@@ -113,7 +114,6 @@ export default function Review() {
 	const {
 		session,
 		repo,
-		repoPath,
 		baseBranch,
 		currentBranch,
 		files,
@@ -260,61 +260,58 @@ export default function Review() {
 		revalidator.revalidate();
 	}, [revalidator]);
 
-	const header = (
-		<div className="flex items-center gap-4 text-sm">
-			<Link
-				to="/"
-				className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-			>
-				<VscArrowLeft className="w-4 h-4" />
-				Back
-			</Link>
-			<span className="text-gray-300 dark:text-gray-600">|</span>
-			<span className="font-medium">{repo.name}</span>
-			<div className="flex items-center gap-1 text-gray-500">
-				<span>{currentBranch}</span>
-				<span className="text-gray-400">vs</span>
-				<BaseBranchSelector
-					currentBaseBranch={baseBranch}
-					repoId={repo.id}
-					sessionId={session.id}
-					onBranchChange={handleBranchChange}
-				/>
-			</div>
-		</div>
-	);
-
-	const headerActions = (
-		<SettingsModal diffStyle={diffStyle} onDiffStyleChange={setDiffStyle} />
-	);
-
-	const leftSidebar = (
-		<FileExplorer
-			files={files}
-			selectedFile={selectedFile}
-			onSelectFile={handleSelectFile}
-		/>
-	);
-
-	const rightSidebar = (
-		<CommentQueue
-			sessionId={session.id}
-			queuedComments={queuedComments}
-			stagedComments={stagedComments}
-			sentComments={sentComments}
-			resolvedComments={resolvedComments}
-			onSendNow={handleSendNow}
-			onSendAllStaged={handleSendAllStaged}
-			onProcessComments={handleProcessComments}
-		/>
-	);
-
 	return (
 		<Layout
-			header={header}
-			headerActions={headerActions}
-			leftSidebar={leftSidebar}
-			rightSidebar={rightSidebar}
+			header={
+				<div className="flex items-center gap-4 text-sm">
+					<Link
+						to="/"
+						className="flex items-center gap-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+					>
+						<VscArrowLeft className="w-4 h-4" />
+						Back
+					</Link>
+					<Separator orientation="vertical" size="1" />
+					<Text weight="medium">{repo.name}</Text>
+					<div className="flex items-center gap-1 text-gray-500">
+						<Text size="2">{currentBranch}</Text>
+						<Text size="2" color="gray">
+							vs
+						</Text>
+						<BaseBranchSelector
+							currentBaseBranch={baseBranch}
+							repoId={repo.id}
+							sessionId={session.id}
+							onBranchChange={handleBranchChange}
+						/>
+					</div>
+				</div>
+			}
+			headerActions={
+				<SettingsModal
+					diffStyle={diffStyle}
+					onDiffStyleChange={setDiffStyle}
+				/>
+			}
+			leftSidebar={
+				<FileExplorer
+					files={files}
+					selectedFile={selectedFile}
+					onSelectFile={handleSelectFile}
+				/>
+			}
+			rightSidebar={
+				<CommentQueue
+					sessionId={session.id}
+					queuedComments={queuedComments}
+					stagedComments={stagedComments}
+					sentComments={sentComments}
+					resolvedComments={resolvedComments}
+					onSendNow={handleSendNow}
+					onSendAllStaged={handleSendAllStaged}
+					onProcessComments={handleProcessComments}
+				/>
+			}
 		>
 			{files.length === 0 ? (
 				<EmptyDiff

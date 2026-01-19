@@ -8,6 +8,7 @@ import type {
 	ParsedPatch,
 } from '@pierre/diffs';
 import {
+	Badge,
 	Button,
 	DropdownMenu,
 	IconButton,
@@ -827,31 +828,33 @@ const StickyFileHeader = memo(function StickyFileHeader({
 		switch (type) {
 			case 'new':
 				return (
-					<span className="status-pill status-pill-added">Added</span>
+					<Badge color="green" variant="soft" size="1">
+						Added
+					</Badge>
 				);
 			case 'deleted':
 				return (
-					<span className="status-pill status-pill-deleted">
+					<Badge color="red" variant="soft" size="1">
 						Deleted
-					</span>
+					</Badge>
 				);
 			case 'rename-pure':
 				return (
-					<span className="status-pill status-pill-renamed">
+					<Badge color="blue" variant="soft" size="1">
 						Renamed
-					</span>
+					</Badge>
 				);
 			case 'rename-changed':
 				return (
-					<span className="status-pill status-pill-renamed">
+					<Badge color="blue" variant="soft" size="1">
 						Renamed & Modified
-					</span>
+					</Badge>
 				);
 			default:
 				return (
-					<span className="status-pill status-pill-modified">
+					<Badge color="amber" variant="soft" size="1">
 						Modified
-					</span>
+					</Badge>
 				);
 		}
 	};
@@ -873,9 +876,10 @@ const StickyFileHeader = memo(function StickyFileHeader({
 		>
 			<div className="flex items-center gap-3 min-w-0">
 				{/* Expand/Collapse toggle */}
-				<button
-					type="button"
-					className="shrink-0 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10"
+				<IconButton
+					variant="ghost"
+					size="1"
+					className="shrink-0"
 					aria-label={isExpanded ? 'Collapse file' : 'Expand file'}
 					aria-expanded={isExpanded}
 				>
@@ -884,7 +888,7 @@ const StickyFileHeader = memo(function StickyFileHeader({
 					) : (
 						<VscChevronRight className="w-4 h-4 text-theme-muted" />
 					)}
-				</button>
+				</IconButton>
 				{getIcon(changeType)}
 				<div className="flex items-center gap-2 min-w-0">
 					<Text

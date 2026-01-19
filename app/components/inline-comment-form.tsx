@@ -83,10 +83,10 @@ export function InlineCommentForm({
 	return (
 		<div
 			data-comment-form
-			className="rounded-lg shadow-lg p-3 box-border animate-slide-in bg-theme-surface border border-theme"
+			className="rounded-lg shadow-lg p-3 box-border animate-slide-in bg-theme-surface border border-theme space-y-2"
 		>
 			{/* Header */}
-			<div className="flex items-center justify-between mb-2">
+			<div className="flex items-center justify-between">
 				<Text size="1" className="text-theme-secondary">
 					{lineInfo}
 				</Text>
@@ -117,7 +117,7 @@ export function InlineCommentForm({
 			/>
 
 			{/* Actions */}
-			<div className="flex items-center justify-end mt-2 gap-2">
+			<div className="flex items-center justify-end gap-2">
 				<Button
 					variant="ghost"
 					size="1"
