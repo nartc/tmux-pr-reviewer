@@ -1,12 +1,8 @@
 import { Effect, Stream } from 'effect';
-import { Dirent, readdirSync } from 'fs';
+import { Dirent, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { ConfigService } from '../lib/config';
 import { runtime } from '../lib/effect-runtime';
-import {
-	type GitService as GitServiceType,
-	GitService,
-} from '../services/git.service';
 
 const IGNORED_DIRS = new Set([
 	'node_modules',
@@ -28,10 +24,18 @@ export interface GitRepo {
 }
 
 /**
- * Stream-based repo scanner that yields repos as they're found
+ * Fast check if a directory is a git repo by checking for .git folder.
+ * Much faster than spawning git subprocess.
+ */
+function isGitRepo(dir: string): boolean {
+	return existsSync(join(dir, '.git'));
+}
+
+/**
+ * Stream-based repo scanner that yields repos as they're found.
+ * Uses synchronous fs operations for maximum speed.
  */
 const scanForReposStream = (
-	git: GitServiceType,
 	dir: string,
 	maxDepth: number,
 	depth: number = 0,
@@ -57,13 +61,11 @@ const scanForReposStream = (
 					!IGNORED_DIRS.has(entry.name) &&
 					!(entry.name.startsWith('.') && entry.name !== '.git'),
 			),
-			Stream.mapEffect((entry) =>
-				Effect.gen(function* () {
-					const fullPath = join(dir, entry.name);
-					const isRepo = yield* git.isGitRepo(fullPath);
-					return { entry, fullPath, isRepo };
-				}),
-			),
+			Stream.map((entry) => {
+				const fullPath = join(dir, entry.name);
+				const repo = isGitRepo(fullPath);
+				return { entry, fullPath, isRepo: repo };
+			}),
 			Stream.flatMap(
 				({ entry, fullPath, isRepo }): Stream.Stream<GitRepo> => {
 					if (isRepo) {
@@ -73,12 +75,7 @@ const scanForReposStream = (
 						});
 					}
 					// Recurse into subdirectories
-					return scanForReposStream(
-						git,
-						fullPath,
-						maxDepth,
-						depth + 1,
-					);
+					return scanForReposStream(fullPath, maxDepth, depth + 1);
 				},
 			),
 		);
@@ -92,16 +89,11 @@ export async function loader() {
 			try {
 				await runtime.runPromise(
 					Effect.gen(function* () {
-						const git = yield* GitService;
 						const { config } = yield* ConfigService;
 
 						// Create streams for each root and merge them
 						const rootStreams = config.repoScanRoots.map((root) =>
-							scanForReposStream(
-								git,
-								root,
-								config.repoScanMaxDepth,
-							),
+							scanForReposStream(root, config.repoScanMaxDepth),
 						);
 
 						// Merge all streams to scan roots in parallel
