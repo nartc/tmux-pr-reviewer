@@ -1,6 +1,29 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Layer, Stream } from 'effect';
+import { type Dirent, existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import simpleGit, { type DiffResultTextFile, type SimpleGit } from 'simple-git';
 import { GitError, NotAGitRepoError } from '../lib/errors';
+
+/** Directories to skip when scanning for repos */
+const IGNORED_DIRS = new Set([
+	'node_modules',
+	'.git',
+	'dist',
+	'build',
+	'.next',
+	'.cache',
+	'coverage',
+	'vendor',
+	'__pycache__',
+	'.venv',
+	'venv',
+]);
+
+/** Repository info returned from scanning */
+export interface ScannedRepo {
+	path: string;
+	name: string;
+}
 
 // Types
 export interface GitInfo {
@@ -32,6 +55,15 @@ export interface GitService {
 		baseBranch: string,
 	) => Effect.Effect<DiffResult, GitError | NotAGitRepoError>;
 	readonly isGitRepo: (path: string) => Effect.Effect<boolean, never>;
+	/**
+	 * Scan directories for git repositories.
+	 * Returns a stream that yields repos as they're found.
+	 * Uses fast filesystem check (existsSync for .git folder).
+	 */
+	readonly scanForRepos: (
+		roots: string[],
+		maxDepth: number,
+	) => Stream.Stream<ScannedRepo>;
 	readonly getRemoteUrl: (
 		repoPath: string,
 	) => Effect.Effect<string | null, GitError>;
@@ -76,6 +108,67 @@ export const GitServiceLive = Layer.succeed(
 				},
 				catch: () => false as never,
 			}).pipe(Effect.catchAll(() => Effect.succeed(false))),
+
+		scanForRepos: (roots: string[], maxDepth: number) => {
+			const scanDir = (
+				dir: string,
+				depth: number,
+			): Stream.Stream<ScannedRepo> =>
+				Stream.suspend(() => {
+					if (depth > maxDepth) return Stream.empty;
+
+					let entries: Dirent[];
+					try {
+						entries = readdirSync(dir, {
+							withFileTypes: true,
+							encoding: 'utf-8',
+						});
+					} catch {
+						return Stream.empty;
+					}
+
+					return Stream.fromIterable(entries).pipe(
+						Stream.filter(
+							(entry) =>
+								entry.isDirectory() &&
+								!IGNORED_DIRS.has(entry.name) &&
+								!(
+									entry.name.startsWith('.') &&
+									entry.name !== '.git'
+								),
+						),
+						Stream.map((entry) => {
+							const fullPath = join(dir, entry.name);
+							const isRepo = existsSync(join(fullPath, '.git'));
+							return { entry, fullPath, isRepo };
+						}),
+						Stream.flatMap(
+							({
+								entry,
+								fullPath,
+								isRepo,
+							}): Stream.Stream<ScannedRepo> => {
+								if (isRepo) {
+									return Stream.make({
+										path: fullPath,
+										name: entry.name,
+									});
+								}
+								return scanDir(fullPath, depth + 1);
+							},
+						),
+					);
+				});
+
+			// Create streams for each root and merge them
+			const rootStreams = roots.map((root) => scanDir(root, 0));
+
+			return rootStreams.length > 0
+				? Stream.mergeAll(rootStreams, {
+						concurrency: rootStreams.length,
+					})
+				: Stream.empty;
+		},
 
 		getRemoteUrl: (repoPath: string) =>
 			Effect.tryPromise({
