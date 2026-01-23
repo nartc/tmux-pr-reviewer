@@ -144,6 +144,26 @@ REPO_SCAN_ROOT=/Users/me/code,/Users/me/projects,/Users/me/work
 
 If not set, defaults to your home directory (`$HOME`).
 
+## Database Setup
+
+The app uses SQLite for local storage. The database is created automatically on first run.
+
+### Existing Users (Upgrading)
+
+If you're upgrading from a previous version, you need to run migrations:
+
+```bash
+# Option 1: Reset database (loses existing data)
+rm db/pr-reviewer.db
+
+# Option 2: Run migrations manually
+sqlite3 db/pr-reviewer.db < db/migrations/001_mcp_migration.sql
+```
+
+### Fresh Install
+
+No action needed - the schema is applied automatically on first start.
+
 ## Usage
 
 Start the server:
