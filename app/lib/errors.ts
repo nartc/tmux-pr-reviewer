@@ -22,12 +22,6 @@ export class TransportError extends Data.TaggedError('TransportError')<{
 	cause?: unknown;
 }> {}
 
-export class TargetNotFoundError extends Data.TaggedError(
-	'TargetNotFoundError',
-)<{
-	targetId: string;
-}> {}
-
 // AI errors
 export class AIError extends Data.TaggedError('AIError')<{
 	message: string;

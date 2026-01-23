@@ -80,13 +80,3 @@ export const McpConfigLive = Layer.effect(
 		Effect.orDie, // Convert ConfigError to defect - fail fast on bad config
 	),
 );
-
-// For testing - create config with custom values
-export const makeTestConfig = (overrides: Partial<McpConfig>): McpConfig => ({
-	workingDir: overrides.workingDir ?? '/test/path',
-	clientName: overrides.clientName ?? 'Test Agent',
-	dbPaths: overrides.dbPaths ?? ['/test/db/pr-reviewer.db'],
-});
-
-export const McpConfigTest = (overrides: Partial<McpConfig> = {}) =>
-	Layer.succeed(McpConfig, makeTestConfig(overrides));

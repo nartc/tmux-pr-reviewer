@@ -322,9 +322,9 @@ export const GitServiceLive = Layer.succeed(
 					);
 				}
 
-				// Get diff summary
+				// Get diff summary (--no-ext-diff bypasses external diff tools like difft)
 				const diffSummary = yield* Effect.tryPromise({
-					try: () => git.diffSummary([baseBranch]),
+					try: () => git.diffSummary(['--no-ext-diff', baseBranch]),
 					catch: (error) =>
 						new GitError({
 							message: 'Failed to get diff summary',
@@ -332,9 +332,9 @@ export const GitServiceLive = Layer.succeed(
 						}),
 				});
 
-				// Get raw diff for rendering
+				// Get raw diff for rendering (--no-ext-diff bypasses external diff tools)
 				const rawDiff = yield* Effect.tryPromise({
-					try: () => git.diff([baseBranch]),
+					try: () => git.diff(['--no-ext-diff', baseBranch]),
 					catch: (error) =>
 						new GitError({
 							message: 'Failed to get raw diff',
@@ -367,105 +367,3 @@ export const GitServiceLive = Layer.succeed(
 			}),
 	}),
 );
-
-// Direct helper for use outside Effect context
-export const createGitService = () => {
-	return {
-		isGitRepo: async (path: string): Promise<boolean> => {
-			try {
-				return await gitFor(path).checkIsRepo();
-			} catch {
-				return false;
-			}
-		},
-		getRemoteUrl: async (path: string): Promise<string | null> => {
-			const git = gitFor(path);
-			const remotes = await git.getRemotes(true);
-			const origin = remotes.find((r) => r.name === 'origin');
-			return origin?.refs?.fetch || null;
-		},
-		getCurrentBranch: async (path: string): Promise<string> => {
-			const git = gitFor(path);
-			const branch = await git.revparse(['--abbrev-ref', 'HEAD']);
-			return branch.trim();
-		},
-		getDefaultBranch: async (path: string): Promise<string> => {
-			const git = gitFor(path);
-			try {
-				// Try to get default branch from remote
-				const result = await git.raw([
-					'symbolic-ref',
-					'refs/remotes/origin/HEAD',
-				]);
-				const match = result.match(/refs\/remotes\/origin\/(.+)/);
-				if (match) return match[1].trim();
-			} catch {
-				// Fallback: check if main or master exists
-				const branches = await git.branchLocal();
-				if (branches.all.includes('main')) return 'main';
-				if (branches.all.includes('master')) return 'master';
-			}
-			return 'main'; // Default fallback
-		},
-		getDiff: async (path: string, baseBranch: string): Promise<string> => {
-			const git = gitFor(path);
-			// Use three-dot syntax to get commits on HEAD not in baseBranch
-			// Plus include any uncommitted changes
-			const committedDiff = await git.diff([`${baseBranch}...HEAD`]);
-			const uncommittedDiff = await git.diff(['HEAD']);
-
-			// Combine both diffs (committed changes from branch + uncommitted working changes)
-			if (committedDiff && uncommittedDiff) {
-				return committedDiff + uncommittedDiff;
-			}
-			return committedDiff || uncommittedDiff;
-		},
-		getDiffSummary: async (path: string, baseBranch: string) => {
-			const git = gitFor(path);
-			// Get summary of commits on HEAD not in baseBranch
-			const committedSummary = await git.diffSummary([
-				`${baseBranch}...HEAD`,
-			]);
-			const uncommittedSummary = await git.diffSummary(['HEAD']);
-
-			// Merge the summaries
-			const fileMap = new Map<
-				string,
-				(typeof committedSummary.files)[0]
-			>();
-
-			for (const file of committedSummary.files) {
-				fileMap.set(file.file, file);
-			}
-
-			for (const file of uncommittedSummary.files) {
-				const existing = fileMap.get(file.file);
-				if (
-					existing &&
-					'insertions' in existing &&
-					'insertions' in file
-				) {
-					// Merge stats for same file
-					fileMap.set(file.file, {
-						...existing,
-						insertions: existing.insertions + file.insertions,
-						deletions: existing.deletions + file.deletions,
-						changes: existing.changes + file.changes,
-					});
-				} else {
-					fileMap.set(file.file, file);
-				}
-			}
-
-			return {
-				...committedSummary,
-				files: Array.from(fileMap.values()),
-				insertions:
-					committedSummary.insertions + uncommittedSummary.insertions,
-				deletions:
-					committedSummary.deletions + uncommittedSummary.deletions,
-				changed: fileMap.size,
-			};
-		},
-	};
-};

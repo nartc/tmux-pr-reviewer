@@ -2,11 +2,12 @@ import { Context, Effect, Layer } from 'effect';
 import { generateId } from '../lib/effect-runtime';
 import {
 	DatabaseError,
+	GitError,
 	RepoNotFoundError,
 	SessionNotFoundError,
 } from '../lib/errors';
 import { getDatabase } from './db.service';
-import { createGitService } from './git.service';
+import { GitService } from './git.service';
 
 // Types
 export interface Repo {
@@ -53,7 +54,8 @@ export interface RepoService {
 		path: string,
 	) => Effect.Effect<
 		{ repo: Repo; repoPath: RepoPath; isNew: boolean },
-		DatabaseError
+		DatabaseError | GitError,
+		GitService
 	>;
 	readonly deleteRepo: (id: string) => Effect.Effect<void, DatabaseError>;
 	readonly deleteRepoPath: (
@@ -66,7 +68,7 @@ export interface RepoService {
 	readonly getOrCreateSession: (
 		repoId: string,
 		path: string,
-	) => Effect.Effect<ReviewSession, DatabaseError>;
+	) => Effect.Effect<ReviewSession, DatabaseError | GitError, GitService>;
 	readonly getSessionById: (
 		id: string,
 	) => Effect.Effect<ReviewSession, SessionNotFoundError | DatabaseError>;
@@ -179,7 +181,7 @@ const makeRepoService = (): RepoService => {
 		createOrGetRepoFromPath: (path: string) =>
 			Effect.gen(function* () {
 				const db = getDatabase();
-				const git = createGitService();
+				const git = yield* GitService;
 
 				// Check if path already registered
 				const existingPath = yield* runDbOperation(
@@ -213,10 +215,9 @@ const makeRepoService = (): RepoService => {
 				}
 
 				// Get git info
-				const remoteUrl = yield* Effect.tryPromise({
-					try: () => git.getRemoteUrl(path),
-					catch: () => null,
-				}).pipe(Effect.catchAll(() => Effect.succeed(null)));
+				const remoteUrl = yield* git
+					.getRemoteUrl(path)
+					.pipe(Effect.catchAll(() => Effect.succeed(null)));
 
 				const repoName = path.split('/').pop() || 'unknown';
 
@@ -237,10 +238,9 @@ const makeRepoService = (): RepoService => {
 				// Create repo if not exists
 				if (!repo) {
 					const repoId = generateId();
-					const baseBranch = yield* Effect.tryPromise({
-						try: () => git.getDefaultBranch(path),
-						catch: () => 'main',
-					}).pipe(Effect.catchAll(() => Effect.succeed('main')));
+					const baseBranch = yield* git
+						.getDefaultBranch(path)
+						.pipe(Effect.catchAll(() => Effect.succeed('main')));
 
 					yield* runDbOperation(
 						() =>
@@ -358,16 +358,9 @@ const makeRepoService = (): RepoService => {
 		getOrCreateSession: (repoId: string, path: string) =>
 			Effect.gen(function* () {
 				const db = getDatabase();
-				const git = createGitService();
+				const git = yield* GitService;
 
-				const currentBranch = yield* Effect.tryPromise({
-					try: () => git.getCurrentBranch(path),
-					catch: (error) =>
-						new DatabaseError({
-							message: 'Failed to get current branch',
-							cause: error,
-						}),
-				});
+				const currentBranch = yield* git.getCurrentBranch(path);
 
 				const existing = yield* runDbOperation(
 					() =>

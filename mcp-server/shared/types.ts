@@ -16,30 +16,6 @@ export interface Comment {
 	resolved_by: string | null;
 }
 
-export interface McpClient {
-	id: string;
-	client_name: string | null;
-	client_version: string | null;
-	connected_at: string;
-	last_seen_at: string;
-	working_dir: string | null;
-}
-
-export interface CommentDelivery {
-	id: string;
-	comment_id: string;
-	client_id: string | null;
-	delivered_at: string;
-}
-
-export interface Repo {
-	id: string;
-	remote_url: string | null;
-	name: string;
-	base_branch: string;
-	created_at: string;
-}
-
 export interface RepoPath {
 	id: string;
 	repo_id: string;
@@ -54,15 +30,4 @@ export interface ReviewSession {
 	branch: string;
 	base_branch: string | null;
 	created_at: string;
-}
-
-export interface CommentWithRepo extends Comment {
-	repo_name: string;
-	repo_path: string;
-}
-
-export interface PendingCommentSummary {
-	repo_name: string;
-	repo_path: string;
-	count: number;
 }
