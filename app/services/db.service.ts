@@ -2,6 +2,7 @@ import { FileSystem, Path } from '@effect/platform';
 import { NodeContext } from '@effect/platform-node';
 import Database from 'better-sqlite3';
 import { Context, Effect, Layer } from 'effect';
+import { ConfigService, ConfigServiceLive } from '../lib/config';
 import { DatabaseError } from '../lib/errors';
 
 // Database service interface
@@ -23,8 +24,9 @@ export const DbServiceLive = Layer.effect(
 	Effect.gen(function* () {
 		const fs = yield* FileSystem.FileSystem;
 		const path = yield* Path.Path;
+		const { config } = yield* ConfigService;
 
-		const dbDir = path.join(process.cwd(), 'db');
+		const dbDir = path.join(config.cwd, 'db');
 		const dbPath = path.join(dbDir, 'pr-reviewer.db');
 
 		if (!dbInstance) {
@@ -90,7 +92,10 @@ export const DbServiceLive = Layer.effect(
 				}),
 		});
 	}),
-).pipe(Layer.provide(NodeContext.layer));
+).pipe(
+	Layer.provideMerge(NodeContext.layer),
+	Layer.provideMerge(ConfigServiceLive),
+);
 
 // Helper functions for common operations
 export const query = <T>(
