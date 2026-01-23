@@ -6,6 +6,7 @@ import { GitServiceLive } from '../services/git.service';
 import { RepoServiceLive } from '../services/repo.service';
 import { TransportServiceLive } from '../services/transport.service';
 import { ConfigServiceLive } from './config';
+import { GlobalConfigServiceLive } from './global-config';
 
 // Logging layer - JSON for production, pretty for development
 const LoggingLive = Layer.mergeAll(
@@ -24,6 +25,7 @@ export const AppLayer = Layer.mergeAll(
 	RepoServiceLive,
 	CommentServiceLive,
 	AIServiceLive,
+	GlobalConfigServiceLive,
 ).pipe(Layer.provide(LoggingLive));
 
 // Runtime instance - initialized with all services

@@ -1,6 +1,8 @@
 import { Effect } from 'effect';
 import { runtime } from '../lib/effect-runtime';
+import { GlobalConfigService } from '../lib/global-config';
 import { CommentService, type Comment } from '../services/comment.service';
+import { RepoService } from '../services/repo.service';
 import type { Route } from './+types/api.send';
 
 export async function action({ request }: Route.ActionArgs) {
@@ -10,6 +12,8 @@ export async function action({ request }: Route.ActionArgs) {
 	return runtime.runPromise(
 		Effect.gen(function* () {
 			const comments = yield* CommentService;
+			const repos = yield* RepoService;
+			const globalConfig = yield* GlobalConfigService;
 
 			switch (intent) {
 				case 'send': {
@@ -40,6 +44,30 @@ export async function action({ request }: Route.ActionArgs) {
 
 					// Mark as sent - MCP agents will pick these up when they poll
 					yield* comments.markAsSent(commentIds);
+
+					// Write signal file for agents to detect
+					const firstComment = validComments[0];
+					const { session, repo } = yield* repos.getSessionWithRepo(
+						firstComment.session_id,
+					);
+
+					// Get count of all sent (unresolved) comments for this session
+					const counts = yield* comments.getCommentCounts(session.id);
+					const pendingCount = counts.sent;
+
+					// Get a repo path (first available)
+					const repoPath = repo.paths[0]?.path;
+					if (repoPath) {
+						yield* globalConfig.writeSignal(
+							{
+								repoPath,
+								remoteUrl: repo.remote_url,
+								sessionId: session.id,
+								repoName: repo.name,
+							},
+							pendingCount,
+						);
+					}
 
 					return Response.json({
 						success: true,

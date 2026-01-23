@@ -17,6 +17,16 @@ When reviewing PRs or working with AI coding assistants, you often want to:
 
 This tool does exactly that - locally, with no external services required (except optional AI providers for comment processing).
 
+## For AI Agents
+
+If you're an AI coding agent helping a user, see [AGENT_INSTRUCTIONS.md](./AGENT_INSTRUCTIONS.md) for automated setup and usage instructions.
+
+The quick version:
+
+1. Check `~/.config/local-pr-reviewer/config.json` - if missing, run setup
+2. Use the `check_for_pending_reviews` MCP tool to detect pending comments
+3. Ask user before addressing comments
+
 ## Requirements
 
 - **Node.js** 20+

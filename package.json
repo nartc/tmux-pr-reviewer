@@ -22,7 +22,8 @@
 	],
 	"type": "module",
 	"scripts": {
-		"build": "react-router build && pnpm build:mcp",
+		"build": "pnpm build:app && pnpm build:mcp",
+		"build:app": "react-router build",
 		"build:mcp": "tsc -p mcp-server/tsconfig.json",
 		"dev": "node scripts/dev.js",
 		"dev:app": "cross-env NODE_ENV=development node server.js",

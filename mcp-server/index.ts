@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { McpConfig, McpConfigLive } from './shared/config.js';
 import { DbService, DbServiceLive, generateId } from './shared/db.js';
 import { checkComments } from './tools/check-comments.js';
+import { checkPendingReviews } from './tools/check-pending-reviews.js';
 import { getDetails } from './tools/get-details.js';
 import { listPending } from './tools/list-pending.js';
 import { listRepoPending } from './tools/list-repo-pending.js';
@@ -91,6 +92,16 @@ const server = new McpServer({
 });
 
 // Register tools with Zod schemas
+server.tool(
+	'check_for_pending_reviews',
+	'Check for pending PR review comments across all repositories. This is a lightweight check using signal files - no database access required. Use this at the start of conversations to see if there are any pending reviews to address.',
+	{},
+	async () => {
+		const result = await runtime.runPromise(checkPendingReviews);
+		return { content: [{ type: 'text' as const, text: result }] };
+	},
+);
+
 server.tool(
 	'check_pr_comments',
 	'Check for pending PR review comments in the current repository. Returns comments that have been sent from the PR Reviewer UI and marks them as delivered.',

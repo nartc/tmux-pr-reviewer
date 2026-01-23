@@ -31,3 +31,11 @@ export interface ReviewSession {
 	base_branch: string | null;
 	created_at: string;
 }
+
+export interface Repo {
+	id: string;
+	remote_url: string | null;
+	name: string;
+	base_branch: string;
+	created_at: string;
+}

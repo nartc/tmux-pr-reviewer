@@ -10,7 +10,13 @@ import {
 	RepoNotFoundError,
 	SessionNotFoundError,
 } from '../shared/db.js';
-import type { Comment, RepoPath, ReviewSession } from '../shared/types.js';
+import { deleteSignal, updateSignalCount } from '../shared/global-config.js';
+import type {
+	Comment,
+	Repo,
+	RepoPath,
+	ReviewSession,
+} from '../shared/types.js';
 
 interface CheckCommentsArgs {
 	repo_path?: string;
@@ -23,12 +29,17 @@ interface CommentWithDetails extends Comment {
 
 // Schema now defined in index.ts with Zod
 
+import { GlobalConfigError } from '../shared/global-config.js';
+
 export const checkComments = (
 	args: CheckCommentsArgs,
 	clientId: string,
 ): Effect.Effect<
 	string,
-	RepoNotFoundError | SessionNotFoundError | DatabaseError,
+	| RepoNotFoundError
+	| SessionNotFoundError
+	| DatabaseError
+	| GlobalConfigError,
 	DbService | McpConfig
 > =>
 	Effect.gen(function* () {
@@ -121,6 +132,32 @@ export const checkComments = (
 			count: comments.length,
 			clientId,
 		});
+
+		// Update signal file based on remaining unresolved comments
+		const remainingCount = yield* db.queryOne<{ count: number }>(
+			`SELECT COUNT(*) as count FROM comments 
+			 WHERE session_id = ? AND status IN ('sent', 'staged', 'queued')`,
+			[session.id],
+		);
+
+		// Get repo's remote URL for signal file path
+		const repo = yield* db.queryOne<Repo>(
+			'SELECT * FROM repos WHERE id = ?',
+			[repoPathRecord.repo_id],
+		);
+
+		const pendingCount = remainingCount?.count ?? 0;
+		if (pendingCount === 0) {
+			// No more pending comments, delete the signal
+			yield* deleteSignal(repoPath, repo?.remote_url ?? null);
+		} else {
+			// Update the signal with new count
+			yield* updateSignalCount(
+				repoPath,
+				repo?.remote_url ?? null,
+				pendingCount,
+			);
+		}
 
 		// Format output
 		const lines: string[] = [
