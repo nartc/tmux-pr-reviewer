@@ -69,6 +69,43 @@ function ensureConfigDir() {
 }
 
 /**
+ * Kill any existing server instance
+ */
+function killExistingInstance() {
+	try {
+		if (fs.existsSync(RUNTIME_FILE)) {
+			const runtime = JSON.parse(fs.readFileSync(RUNTIME_FILE, 'utf-8'));
+			if (runtime.pid) {
+				try {
+					// Check if process exists
+					process.kill(runtime.pid, 0);
+					// Process exists, kill it
+					console.log(`Killing existing server (PID ${runtime.pid})`);
+					process.kill(runtime.pid, 'SIGTERM');
+					// Give it a moment to shut down
+					const start = Date.now();
+					while (Date.now() - start < 2000) {
+						try {
+							process.kill(runtime.pid, 0);
+							// Still alive, wait
+						} catch {
+							// Process is gone
+							break;
+						}
+					}
+				} catch {
+					// Process doesn't exist, that's fine
+				}
+			}
+			// Clean up stale runtime file
+			fs.unlinkSync(RUNTIME_FILE);
+		}
+	} catch {
+		// Ignore errors
+	}
+}
+
+/**
  * Write runtime.json with current server info
  * @param {number} port
  */
@@ -96,6 +133,9 @@ function cleanupRuntime() {
 		// Ignore errors during cleanup
 	}
 }
+
+// Kill any existing instance before starting
+killExistingInstance();
 
 // Find available port
 const envPort = process.env.PORT ? Number.parseInt(process.env.PORT) : null;
