@@ -1,8 +1,8 @@
-import { Separator, Text } from '@radix-ui/themes';
+import { Button, Separator, Text, Tooltip } from '@radix-ui/themes';
 import { Effect } from 'effect';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { VscArrowLeft } from 'react-icons/vsc';
-import { Link, useLoaderData, useRevalidator } from 'react-router';
+import { VscArrowLeft, VscDebugStop } from 'react-icons/vsc';
+import { Link, useLoaderData, useNavigate, useRevalidator } from 'react-router';
 import { BaseBranchSelector } from '../components/base-branch-selector';
 import { CommentQueue } from '../components/comment-queue';
 import { DiffViewer } from '../components/diff-viewer';
@@ -138,6 +138,7 @@ export default function Review() {
 	const [selectedFile, setSelectedFile] = useState<string | null>(null);
 	const [diffStyle, setDiffStyle] = useState<DiffStyle>('split');
 	const revalidator = useRevalidator();
+	const navigate = useNavigate();
 
 	// Poll for comment updates every 30 seconds
 	useEffect(() => {
@@ -271,6 +272,23 @@ export default function Review() {
 		revalidator.revalidate();
 	}, [revalidator]);
 
+	const handleEndSession = useCallback(async () => {
+		try {
+			const formData = new URLSearchParams();
+			formData.append('intent', 'endSession');
+			formData.append('sessionId', session.id);
+
+			await fetch('/api/session', {
+				method: 'POST',
+				body: formData,
+			});
+
+			navigate('/');
+		} catch (error) {
+			console.error('Failed to end session:', error);
+		}
+	}, [session.id, navigate]);
+
 	return (
 		<Layout
 			header={
@@ -299,10 +317,23 @@ export default function Review() {
 				</div>
 			}
 			headerActions={
-				<SettingsModal
-					diffStyle={diffStyle}
-					onDiffStyleChange={setDiffStyle}
-				/>
+				<div className="flex items-center gap-2">
+					<SettingsModal
+						diffStyle={diffStyle}
+						onDiffStyleChange={setDiffStyle}
+					/>
+					<Tooltip content="End review session (clears agent signal)">
+						<Button
+							variant="soft"
+							color="red"
+							size="1"
+							onClick={handleEndSession}
+						>
+							<VscDebugStop className="w-4 h-4" />
+							End Session
+						</Button>
+					</Tooltip>
+				</div>
 			}
 			leftSidebar={
 				<FileExplorer

@@ -22,6 +22,7 @@ import { EmptyRepos } from '../components/empty-states';
 import { SimpleLayout } from '../components/layout';
 import { RepoPicker } from '../components/repo-picker';
 import { runtime } from '../lib/effect-runtime';
+import { GlobalConfigService } from '../lib/global-config';
 import { RepoService, type RepoWithPath } from '../services/repo.service';
 import type { Route } from './+types/home';
 
@@ -71,6 +72,20 @@ export async function action({ request }: Route.ActionArgs) {
 			if (intent === 'delete') {
 				const repoId = formData.get('repoId') as string;
 				if (repoId) {
+					const globalConfig = yield* GlobalConfigService;
+
+					// Get repo info before deletion to clean up signals
+					const repoData = yield* repo.getRepoById(repoId);
+					const paths = yield* repo.getRepoPaths(repoId);
+
+					// Delete signal files for all paths
+					for (const path of paths) {
+						yield* globalConfig.deleteSignal(
+							path.path,
+							repoData.remote_url,
+						);
+					}
+
 					yield* repo.deleteRepo(repoId);
 				}
 				return { success: true };
