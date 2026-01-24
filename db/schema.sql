@@ -37,7 +37,10 @@ CREATE TABLE IF NOT EXISTS comments (
   content TEXT NOT NULL,
   status TEXT DEFAULT 'queued' CHECK(status IN ('queued', 'staged', 'sent', 'resolved', 'cancelled')),
   created_at TEXT DEFAULT (datetime('now')),
-  sent_at TEXT
+  sent_at TEXT,
+  delivered_at TEXT,
+  resolved_at TEXT,
+  resolved_by TEXT
 );
 
 -- Failed sends for retry (after 3 auto-retry attempts)
@@ -50,10 +53,28 @@ CREATE TABLE IF NOT EXISTS failed_sends (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
--- App-level config (tmux session preference, YOLO mode, AI provider, etc.)
+-- App-level config (AI provider, etc.)
 CREATE TABLE IF NOT EXISTS app_config (
   key TEXT PRIMARY KEY,
   value TEXT
+);
+
+-- Track MCP client connections
+CREATE TABLE IF NOT EXISTS mcp_clients (
+  id TEXT PRIMARY KEY,
+  client_name TEXT,
+  client_version TEXT,
+  connected_at TEXT DEFAULT (datetime('now')),
+  last_seen_at TEXT DEFAULT (datetime('now')),
+  working_dir TEXT
+);
+
+-- Track comment deliveries per client
+CREATE TABLE IF NOT EXISTS comment_deliveries (
+  id TEXT PRIMARY KEY,
+  comment_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  client_id TEXT REFERENCES mcp_clients(id) ON DELETE CASCADE,
+  delivered_at TEXT DEFAULT (datetime('now'))
 );
 
 -- Indexes for common queries
@@ -62,3 +83,5 @@ CREATE INDEX IF NOT EXISTS idx_review_sessions_repo_id ON review_sessions(repo_i
 CREATE INDEX IF NOT EXISTS idx_comments_session_id ON comments(session_id);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
 CREATE INDEX IF NOT EXISTS idx_failed_sends_session_id ON failed_sends(session_id);
+CREATE INDEX IF NOT EXISTS idx_deliveries_comment ON comment_deliveries(comment_id);
+CREATE INDEX IF NOT EXISTS idx_deliveries_client ON comment_deliveries(client_id);
