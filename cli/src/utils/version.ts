@@ -1,7 +1,12 @@
 // Version management for local-pr-reviewer
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getVersionJsonPath } from './paths.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface VersionInfo {
 	version: string;
@@ -13,8 +18,15 @@ export interface VersionInfo {
  * Get the current CLI version from package.json
  */
 export function getCliVersion(): string {
-	// This will be replaced during build or read from package.json
-	return '1.0.0';
+	// Read from CLI's package.json (relative to dist/utils/)
+	const packageJsonPath = join(__dirname, '..', '..', 'package.json');
+	try {
+		const content = readFileSync(packageJsonPath, 'utf-8');
+		const pkg = JSON.parse(content);
+		return pkg.version || '0.0.0';
+	} catch {
+		return '0.0.0';
+	}
 }
 
 /**

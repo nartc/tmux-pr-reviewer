@@ -115,9 +115,20 @@ if (DEVELOPMENT) {
 			maxAge: '1y',
 		}),
 	);
-	app.use(morgan('tiny'));
+	app.use(morgan('combined'));
 	app.use(express.static('build/client', { maxAge: '1h' }));
 	app.use(await import(BUILD_PATH).then((mod) => mod.app));
+
+	// Error handling middleware - must have 4 params for Express to recognize it
+	app.use((err, _req, res, _next) => {
+		console.error('=== SERVER ERROR ===');
+		console.error('Message:', err.message);
+		console.error('Stack:', err.stack);
+		console.error('====================');
+		if (!res.headersSent) {
+			res.status(500).json({ error: err.message });
+		}
+	});
 }
 
 const PORT = await getPort();
