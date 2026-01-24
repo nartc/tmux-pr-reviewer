@@ -148,6 +148,7 @@ export async function startServer(): Promise<ServerInfo> {
 			...process.env,
 			PORT: String(port),
 			NODE_ENV: 'production',
+			PWD: configDir, // Must set PWD to match cwd for the app config
 		},
 		detached: true,
 		stdio: ['ignore', logFd, logFd],
