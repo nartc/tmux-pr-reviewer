@@ -56,8 +56,17 @@ export async function action({ request }: Route.ActionArgs) {
 							.pipe(Effect.catchAll(() => Effect.succeed(null)));
 
 						if (result?.repo.paths) {
+							// Count comments for this session
+							const sessionCommentCount = validComments.filter(
+								(c) => c.session_id === sessionId,
+							).length;
+
 							for (const repoPath of result.repo.paths) {
-								yield* updateSignalFile(repoPath.path);
+								yield* updateSignalFile(
+									repoPath.path,
+									sessionId,
+									sessionCommentCount,
+								);
 							}
 						}
 					}

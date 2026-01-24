@@ -147,11 +147,22 @@ export const createSignalFile = (repoPath: string, remember: boolean) =>
 		};
 	});
 
+export interface SignalFileData {
+	sessionId: string;
+	repoPath: string;
+	pendingCount: number;
+	updatedAt: string;
+}
+
 /**
  * Update signal file to notify MCP clients of pending comments
- * Writes current timestamp to trigger file watchers
+ * Writes session info so MCP can efficiently fetch comments
  */
-export const updateSignalFile = (repoPath: string) =>
+export const updateSignalFile = (
+	repoPath: string,
+	sessionId: string,
+	pendingCount: number,
+) =>
 	Effect.gen(function* () {
 		const fs = yield* FileSystem.FileSystem;
 		const path = yield* Path.Path;
@@ -164,7 +175,61 @@ export const updateSignalFile = (repoPath: string) =>
 			return false;
 		}
 
-		yield* fs.writeFileString(signalPath, new Date().toISOString());
+		const data: SignalFileData = {
+			sessionId,
+			repoPath,
+			pendingCount,
+			updatedAt: new Date().toISOString(),
+		};
+
+		yield* fs.writeFileString(signalPath, JSON.stringify(data, null, 2));
+		return true;
+	}).pipe(Effect.catchAll(() => Effect.succeed(false)));
+
+/**
+ * Read signal file data
+ */
+export const readSignalFile = (repoPath: string) =>
+	Effect.gen(function* () {
+		const fs = yield* FileSystem.FileSystem;
+		const path = yield* Path.Path;
+
+		const signalPath = path.join(repoPath, SIGNAL_FILE_NAME);
+
+		const exists = yield* fs.exists(signalPath);
+		if (!exists) {
+			return null;
+		}
+
+		const content = yield* fs.readFileString(signalPath);
+		if (!content.trim()) {
+			return null;
+		}
+
+		try {
+			return JSON.parse(content) as SignalFileData;
+		} catch {
+			return null;
+		}
+	}).pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+/**
+ * Clear signal file after comments have been delivered
+ */
+export const clearSignalFile = (repoPath: string) =>
+	Effect.gen(function* () {
+		const fs = yield* FileSystem.FileSystem;
+		const path = yield* Path.Path;
+
+		const signalPath = path.join(repoPath, SIGNAL_FILE_NAME);
+
+		const exists = yield* fs.exists(signalPath);
+		if (!exists) {
+			return false;
+		}
+
+		// Write empty string to clear but keep file
+		yield* fs.writeFileString(signalPath, '');
 		return true;
 	}).pipe(Effect.catchAll(() => Effect.succeed(false)));
 
