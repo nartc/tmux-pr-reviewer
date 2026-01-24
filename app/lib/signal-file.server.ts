@@ -132,3 +132,31 @@ export function createSignalFile(
 		signalPath,
 	};
 }
+
+/**
+ * Update signal file to notify MCP clients of pending comments
+ * Writes current timestamp to trigger file watchers
+ */
+export function updateSignalFile(repoPath: string): boolean {
+	const signalPath = join(repoPath, SIGNAL_FILE_NAME);
+
+	// Only update if signal file exists (user opted in)
+	if (!existsSync(signalPath)) {
+		return false;
+	}
+
+	try {
+		// Write timestamp to trigger file change detection
+		writeFileSync(signalPath, new Date().toISOString());
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Get the signal file name constant
+ */
+export function getSignalFileName(): string {
+	return SIGNAL_FILE_NAME;
+}

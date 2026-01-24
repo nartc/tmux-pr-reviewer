@@ -41,6 +41,25 @@ export async function action({ request }: Route.ActionArgs) {
 					// Mark as sent - MCP agents will pick these up when they poll
 					yield* comments.markAsSent(commentIds);
 
+					// Update signal files to notify MCP clients
+					// Get unique session IDs from comments
+					const sessionIds = [
+						...new Set(validComments.map((c) => c.session_id)),
+					];
+
+					const repoService = yield* RepoService;
+					for (const sessionId of sessionIds) {
+						const result = yield* repoService
+							.getSessionWithRepo(sessionId)
+							.pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+						if (result?.repo.paths) {
+							for (const repoPath of result.repo.paths) {
+								updateSignalFile(repoPath.path);
+							}
+						}
+					}
+
 					return Response.json({
 						success: true,
 						count: validComments.length,
