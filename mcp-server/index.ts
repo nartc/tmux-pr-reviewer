@@ -2,10 +2,19 @@
 // PR Reviewer MCP Server
 // Provides tools for coding agents to receive and manage PR review comments
 
+import { FileSystem, Path } from '@effect/platform';
 import { NodeContext } from '@effect/platform-node';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { Effect, Layer, Logger, LogLevel, ManagedRuntime } from 'effect';
+import {
+	Effect,
+	Layer,
+	Logger,
+	LogLevel,
+	ManagedRuntime,
+	Stream,
+} from 'effect';
+import { watch } from 'node:fs';
 import { z } from 'zod';
 
 import { McpConfig, McpConfigLive } from './shared/config.js';
@@ -348,14 +357,138 @@ server.tool(
 	},
 );
 
-// Start the server
-const main = async () => {
-	const transport = new StdioServerTransport();
-	await server.connect(transport);
-	console.error('PR Reviewer MCP server started');
-};
+// Signal file watching for push notifications
+const SIGNAL_FILE_NAME = '.local-pr-reviewer-pending';
 
-main().catch((error) => {
+interface SignalFileData {
+	sessionId: string;
+	repoPath: string;
+	pendingCount: number;
+	updatedAt: string;
+}
+
+/**
+ * Create a stream that watches a file for changes and emits the content
+ */
+const watchSignalFile = (signalPath: string) =>
+	Stream.async<SignalFileData>((emit) => {
+		let lastContent = '';
+
+		const checkAndEmit = () => {
+			Effect.gen(function* () {
+				const fs = yield* FileSystem.FileSystem;
+				const exists = yield* fs.exists(signalPath);
+
+				if (!exists) return;
+
+				const content = yield* fs.readFileString(signalPath).pipe(
+					Effect.map((c) => c.trim()),
+					Effect.catchAll(() => Effect.succeed('')),
+				);
+
+				if (!content || content === lastContent) return;
+
+				lastContent = content;
+
+				try {
+					const data = JSON.parse(content) as SignalFileData;
+					if (data.pendingCount > 0) {
+						emit.single(data);
+					}
+				} catch {
+					// Ignore parse errors
+				}
+			}).pipe(Effect.provide(NodeContext.layer), Effect.runPromise);
+		};
+
+		// Set up Node.js file watcher
+		const watcher = watch(signalPath, (eventType) => {
+			if (eventType === 'change') {
+				checkAndEmit();
+			}
+		});
+
+		// Initial check
+		checkAndEmit();
+
+		// Cleanup on stream end
+		return Effect.sync(() => {
+			watcher.close();
+		});
+	});
+
+/**
+ * Set up signal file watching and send notifications
+ */
+const setupSignalFileWatcher = (workingDir: string) =>
+	Effect.gen(function* () {
+		const path = yield* Path.Path;
+		const fs = yield* FileSystem.FileSystem;
+
+		const signalPath = path.join(workingDir, SIGNAL_FILE_NAME);
+		const exists = yield* fs.exists(signalPath);
+
+		if (!exists) {
+			yield* Effect.logInfo(
+				'Signal file not found - notifications disabled',
+			).pipe(Effect.annotateLogs({ signalPath }));
+			return;
+		}
+
+		yield* Effect.logInfo('Watching signal file for changes').pipe(
+			Effect.annotateLogs({ signalPath }),
+		);
+
+		// Process signal file changes
+		yield* watchSignalFile(signalPath).pipe(
+			Stream.tap((data) =>
+				Effect.gen(function* () {
+					const message = `🔔 New PR review comments available! ${data.pendingCount} comment(s) pending for review. Use check_pr_comments to see them.`;
+
+					yield* Effect.tryPromise(() =>
+						server.server.sendLoggingMessage({
+							level: 'info',
+							logger: 'pr-reviewer',
+							data: message,
+						}),
+					).pipe(
+						Effect.catchAll((err) =>
+							Effect.logError('Failed to send notification').pipe(
+								Effect.annotateLogs({ error: String(err) }),
+							),
+						),
+					);
+
+					yield* Effect.logInfo(
+						'Notified client of pending comments',
+					).pipe(
+						Effect.annotateLogs({
+							pendingCount: data.pendingCount,
+						}),
+					);
+				}),
+			),
+			Stream.runDrain,
+			Effect.fork, // Run in background
+		);
+	});
+
+// Start the server
+const main = Effect.gen(function* () {
+	const transport = new StdioServerTransport();
+	yield* Effect.tryPromise(() => server.connect(transport));
+
+	yield* Effect.logInfo('PR Reviewer MCP server started');
+
+	// Get working directory and set up watcher
+	const workingDir = process.env.PWD || process.cwd();
+	yield* setupSignalFileWatcher(workingDir);
+
+	// Keep the process alive
+	yield* Effect.never;
+}).pipe(Effect.provide(NodeContext.layer));
+
+Effect.runPromise(main).catch((error) => {
 	console.error('Failed to start MCP server:', error);
 	process.exit(1);
 });

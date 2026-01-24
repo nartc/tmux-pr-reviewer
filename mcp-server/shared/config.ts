@@ -3,12 +3,7 @@
 
 import { Path } from '@effect/platform';
 import { Config, ConfigError, Context, Effect, Layer } from 'effect';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-// ES module equivalent of __dirname - must be computed at module load time
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { homedir } from 'node:os';
 
 // Client detection environment variables
 const clientEnvVars = [
@@ -40,14 +35,18 @@ const detectClientName: Effect.Effect<string, ConfigError.ConfigError> =
 		return 'Unknown Agent';
 	});
 
-// Build possible DB paths based on working directory
-const buildDbPaths = (path: Path.Path, cwd: string): readonly string[] =>
-	[
-		path.join(cwd, 'db', 'pr-reviewer.db'),
-		// Fallback paths for when MCP server runs from different locations
-		path.join(__dirname, '..', '..', '..', 'db', 'pr-reviewer.db'),
-		path.join(__dirname, '..', '..', 'db', 'pr-reviewer.db'),
-	] as const;
+// Get the global config directory (same as CLI)
+const getConfigDir = (path: Path.Path): string => {
+	const xdgConfig = process.env.XDG_CONFIG_HOME;
+	const configBase = xdgConfig || path.join(homedir(), '.config');
+	return path.join(configBase, 'local-pr-reviewer');
+};
+
+// Build DB path - use global config directory
+const buildDbPaths = (path: Path.Path): readonly string[] => {
+	const configDir = getConfigDir(path);
+	return [path.join(configDir, 'db', 'pr-reviewer.db')] as const;
+};
 
 // Create config from environment
 const makeConfig: Effect.Effect<McpConfig, ConfigError.ConfigError, Path.Path> =
@@ -60,7 +59,7 @@ const makeConfig: Effect.Effect<McpConfig, ConfigError.ConfigError, Path.Path> =
 		);
 
 		const clientName = yield* detectClientName;
-		const dbPaths = buildDbPaths(path, workingDir);
+		const dbPaths = buildDbPaths(path);
 
 		return {
 			workingDir,
