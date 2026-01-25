@@ -142,7 +142,8 @@ export async function startServer(): Promise<ServerInfo> {
 	const logPath = getServerLogPath();
 	const logFd = openSync(logPath, 'a');
 
-	const child = spawn('node', [serverJsPath], {
+	// Use process.execPath to ensure same Node version as CLI (important for native modules)
+	const child = spawn(process.execPath, [serverJsPath], {
 		cwd: configDir,
 		env: {
 			...process.env,

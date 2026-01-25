@@ -133,7 +133,8 @@ async function getOrStartServer(): Promise<ServerInfo> {
 	const logPath = getServerLogPath();
 	const logFd = openSync(logPath, 'a');
 
-	const child = spawn('node', [serverJsPath], {
+	// Use process.execPath to ensure same Node version as MCP server (important for native modules)
+	const child = spawn(process.execPath, [serverJsPath], {
 		cwd: configDir,
 		env: {
 			...process.env,
