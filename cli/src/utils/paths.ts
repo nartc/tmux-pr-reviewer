@@ -36,6 +36,13 @@ export function getPreferencesPath(): string {
 }
 
 /**
+ * Get path to agents.json (agent preferences for loop)
+ */
+export function getAgentsConfigPath(): string {
+	return join(getConfigDir(), 'agents.json');
+}
+
+/**
  * Get path to .env file
  */
 export function getEnvPath(): string {

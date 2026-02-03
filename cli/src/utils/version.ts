@@ -10,9 +10,12 @@ const __dirname = dirname(__filename);
 
 export interface VersionInfo {
 	version: string;
+	configVersion?: number; // v2: config schema version
 	installedAt: string;
 	updatedAt: string;
 }
+
+export const CURRENT_CONFIG_VERSION = 2;
 
 /**
  * Get the current CLI version from package.json
@@ -89,13 +92,17 @@ export function readVersionInfo(): VersionInfo | null {
 /**
  * Write version info
  */
-export function writeVersionInfo(version: string): void {
+export function writeVersionInfo(
+	version: string,
+	configVersion: number = CURRENT_CONFIG_VERSION,
+): void {
 	const versionPath = getVersionJsonPath();
 	const now = new Date().toISOString();
 	const existing = readVersionInfo();
 
 	const info: VersionInfo = {
 		version,
+		configVersion,
 		installedAt: existing?.installedAt || now,
 		updatedAt: now,
 	};

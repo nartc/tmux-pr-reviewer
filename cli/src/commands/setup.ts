@@ -1,7 +1,7 @@
 // Setup command for local-pr-reviewer
 
 import * as p from '@clack/prompts';
-import { execSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
 	cpSync,
 	existsSync,
@@ -13,7 +13,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import color from 'picocolors';
 import { configureMcp, type CodingAgent } from '../utils/mcp-config.js';
-import { getConfigDir, getEnvPath } from '../utils/paths.js';
+import {
+	getAgentsConfigPath,
+	getConfigDir,
+	getEnvPath,
+} from '../utils/paths.js';
 import {
 	getCliVersion,
 	isBreakingChange,
@@ -200,43 +204,37 @@ export async function setup(options: SetupOptions = {}): Promise<void> {
 		}
 	}
 
-	// Install skill
-	const installSkill = await p.confirm({
-		message: 'Install the local-pr-reviewer skill?',
-		initialValue: true,
+	// Default agent selection for loop
+	const defaultAgentOptions = agents.map((a) => ({
+		value: a === 'claude-code' ? 'claude' : a,
+		label: a === 'claude-code' ? 'Claude Code' : 'OpenCode',
+	}));
+
+	const defaultAgentResult = await p.select({
+		message: 'Which agent should be the default for the review loop?',
+		options: defaultAgentOptions,
 	});
 
-	if (p.isCancel(installSkill)) {
+	if (p.isCancel(defaultAgentResult)) {
 		p.cancel('Setup cancelled.');
 		process.exit(0);
 	}
 
-	if (installSkill) {
-		s.start('Installing skill');
-		try {
-			const agentFlags = agents.map((a) => `-a ${a}`).join(' ');
-			execSync(
-				`npx skills@latest add nartc/pr-reviewer --skill local-pr-reviewer-setup ${agentFlags} -g -y`,
-				{ stdio: 'ignore' },
-			);
-			s.stop('Skill installed');
-		} catch {
-			s.stop(
-				'Failed to install skill (you can install it manually later)',
-			);
-			p.log.warn(
-				`Run: npx skills@latest add nartc/pr-reviewer --skill local-pr-reviewer-setup -g`,
-			);
-		}
-	}
+	// Write agents.json
+	const agentsConfig = {
+		default: defaultAgentResult,
+		projects: {},
+	};
+	writeFileSync(getAgentsConfigPath(), JSON.stringify(agentsConfig, null, 2));
+	p.log.success('Agent configuration saved');
 
-	// Write version info
+	// Write version info (with configVersion for v2)
 	writeVersionInfo(currentVersion);
 
 	p.outro(color.green('Setup complete!'));
 
 	p.note(
-		`Start the review server:\n  ${color.cyan('npx local-pr-reviewer start')}\n\nOr use the MCP tool:\n  ${color.cyan('start_review_server')}`,
+		`Start the review loop:\n  ${color.cyan('npx local-pr-reviewer')}\n\nOr start server only:\n  ${color.cyan('npx local-pr-reviewer start')}`,
 		'Next steps',
 	);
 }

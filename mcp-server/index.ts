@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PR Reviewer MCP Server
+// PR Reviewer MCP Server v2
 // Provides tools for coding agents to receive and manage PR review comments
 
 import { NodeContext } from '@effect/platform-node';
@@ -12,11 +12,7 @@ import { McpConfig, McpConfigLive } from './shared/config.js';
 import { DbService, DbServiceLive, generateId } from './shared/db.js';
 import { checkComments } from './tools/check-comments.js';
 import { getDetails } from './tools/get-details.js';
-import { listPending } from './tools/list-pending.js';
-import { listRepoPending } from './tools/list-repo-pending.js';
 import { markResolved } from './tools/mark-resolved.js';
-import { getServerStatus } from './tools/server-status.js';
-import { startServer } from './tools/start-server.js';
 
 // Logging layer - stderr for MCP (stdout is reserved for protocol)
 const LoggingLive = Layer.mergeAll(
@@ -94,6 +90,7 @@ const server = new McpServer({
 });
 
 // Register tools with Zod schemas
+// Tool 1: check_pr_comments
 server.tool(
 	'check_pr_comments',
 	'Check for pending PR review comments in the current repository. Returns comments that have been sent from the PR Reviewer UI and marks them as delivered.',
@@ -141,6 +138,7 @@ server.tool(
 	},
 );
 
+// Tool 2: mark_comment_resolved
 server.tool(
 	'mark_comment_resolved',
 	'Mark a PR review comment as resolved after addressing it. Use the comment ID from check_pr_comments.',
@@ -180,85 +178,7 @@ server.tool(
 	},
 );
 
-server.tool(
-	'list_pending_comments',
-	'List pending PR review comments across all registered repositories. Shows a summary of undelivered comments per repository.',
-	{},
-	async () => {
-		const program = Effect.gen(function* () {
-			yield* getOrCreateClient;
-			return yield* listPending();
-		}).pipe(
-			Effect.catchAll((error) =>
-				Effect.gen(function* () {
-					const message =
-						'message' in error
-							? (error.message as string)
-							: String(error);
-					yield* Effect.logError('Tool error').pipe(
-						Effect.annotateLogs({
-							tool: 'list_pending_comments',
-							error: message,
-						}),
-					);
-					return `Error: ${message}`;
-				}),
-			),
-			Effect.withSpan('mcp.tool.list_pending_comments'),
-		);
-
-		const result = await runtime.runPromise(program);
-		return { content: [{ type: 'text' as const, text: result }] };
-	},
-);
-
-server.tool(
-	'list_repo_pending_comments',
-	'List pending PR review comments for the current repository only. Shows a summary grouped by file.',
-	{
-		repo_path: z
-			.string()
-			.optional()
-			.describe(
-				'Optional: Repository path (auto-detected from cwd if not provided)',
-			),
-	},
-	async ({ repo_path }) => {
-		const program = Effect.gen(function* () {
-			yield* getOrCreateClient;
-			return yield* listRepoPending({ repo_path });
-		}).pipe(
-			Effect.catchAll((error) =>
-				Effect.gen(function* () {
-					const message =
-						'message' in error
-							? (error.message as string)
-							: String(error);
-					yield* Effect.logError('Tool error').pipe(
-						Effect.annotateLogs({
-							tool: 'list_repo_pending_comments',
-							error: message,
-						}),
-					);
-
-					if (error._tag === 'RepoNotFoundError') {
-						return `No repository registered at path: ${(error as { path: string }).path}\n\nTo use this tool, first open the PR Reviewer UI and select this repository.`;
-					}
-					if (error._tag === 'SessionNotFoundError') {
-						return `No active review session found for ${(error as { repoName: string }).repoName}.\n\nOpen the PR Reviewer UI to start a review session.`;
-					}
-
-					return `Error: ${message}`;
-				}),
-			),
-			Effect.withSpan('mcp.tool.list_repo_pending_comments'),
-		);
-
-		const result = await runtime.runPromise(program);
-		return { content: [{ type: 'text' as const, text: result }] };
-	},
-);
-
+// Tool 3: get_comment_details
 server.tool(
 	'get_comment_details',
 	'Get detailed information about a specific PR review comment, including file path, line numbers, content, and status.',
@@ -298,63 +218,12 @@ server.tool(
 	},
 );
 
-server.tool(
-	'start_review_server',
-	'Start the review web server and get the URL for the current repository. Use this when you want to review code changes.',
-	{
-		repo_path: z
-			.string()
-			.optional()
-			.describe(
-				'Optional: Repository path (auto-detected from cwd if not provided)',
-			),
-	},
-	async ({ repo_path }) => {
-		const program = Effect.gen(function* () {
-			yield* getOrCreateClient;
-			return yield* startServer({ repo_path });
-		}).pipe(
-			Effect.catchAll((error: Error) =>
-				Effect.gen(function* () {
-					const message = error.message || String(error);
-					yield* Effect.logError('Tool error').pipe(
-						Effect.annotateLogs({
-							tool: 'start_review_server',
-							error: message,
-						}),
-					);
-					return `Error: ${message}`;
-				}),
-			),
-			Effect.withSpan('mcp.tool.start_review_server'),
-		);
-
-		const result = await runtime.runPromise(program);
-		return { content: [{ type: 'text' as const, text: result }] };
-	},
-);
-
-server.tool(
-	'get_server_status',
-	'Check if the review server is running and get its URL and status.',
-	{},
-	async () => {
-		const program = Effect.gen(function* () {
-			yield* getOrCreateClient;
-			return yield* getServerStatus();
-		}).pipe(Effect.withSpan('mcp.tool.get_server_status'));
-
-		const result = await runtime.runPromise(program);
-		return { content: [{ type: 'text' as const, text: result }] };
-	},
-);
-
 // Start the server
 const main = Effect.gen(function* () {
 	const transport = new StdioServerTransport();
 	yield* Effect.tryPromise(() => server.connect(transport));
 
-	yield* Effect.logInfo('PR Reviewer MCP server started');
+	yield* Effect.logInfo('PR Reviewer MCP server v2 started');
 
 	// Keep the process alive
 	yield* Effect.never;
