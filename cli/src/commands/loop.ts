@@ -3,7 +3,7 @@
 import * as p from '@clack/prompts';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import color from 'picocolors';
 import { getAgentForProject, isGitRepo } from '../utils/migration.js';
 import {
@@ -59,8 +59,7 @@ export async function loop(options: LoopOptions = {}): Promise<void> {
 		}
 	}
 
-	const repoName = basename(cwd);
-	const webUrl = `${getServerUrl(serverInfo)}/review/${encodeURIComponent(repoName)}`;
+	const webUrl = getServerUrl(serverInfo, cwd);
 
 	// Show intro and confirm
 	p.intro(color.bgCyan(color.black(' local-pr-reviewer ')));
