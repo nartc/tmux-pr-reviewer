@@ -31,6 +31,7 @@ const items = [
 	{ src: 'dist', dest: 'dist' },
 	{ src: 'server.js', dest: 'server.js' },
 	{ src: 'db/schema.sql', dest: 'db/schema.sql' },
+	{ src: 'node_modules/sql.js/dist/sql-wasm.wasm', dest: 'db/sql-wasm.wasm' },
 ];
 
 for (const item of items) {
@@ -83,7 +84,7 @@ const artifactPkg = {
 		'@tanstack/react-virtual':
 			rootPkg.dependencies['@tanstack/react-virtual'],
 		ai: rootPkg.dependencies['ai'],
-		'better-sqlite3': rootPkg.dependencies['better-sqlite3'],
+		'sql.js': rootPkg.dependencies['sql.js'],
 		compression: rootPkg.dependencies['compression'],
 		effect: rootPkg.dependencies['effect'],
 		express: rootPkg.dependencies['express'],
