@@ -69,28 +69,14 @@ export function buildCommentMap(comments: Comment[]): CommentMap {
 		}
 		const fileMap = map.get(comment.file_path)!;
 
-		// For single line comments or file-level comments
+		// Index comments by their start line only
+		// Multi-line comments are accessed via their start line
 		if (comment.line_start !== null) {
 			const lineKey = comment.line_start;
 			if (!fileMap.has(lineKey)) {
 				fileMap.set(lineKey, []);
 			}
 			fileMap.get(lineKey)!.push(comment);
-
-			// For multi-line comments, also index by end line
-			if (
-				comment.line_end !== null &&
-				comment.line_end !== comment.line_start
-			) {
-				if (!fileMap.has(comment.line_end)) {
-					fileMap.set(comment.line_end, []);
-				}
-				// Only add if not already there (avoid duplicates)
-				const endLineComments = fileMap.get(comment.line_end)!;
-				if (!endLineComments.includes(comment)) {
-					endLineComments.push(comment);
-				}
-			}
 		}
 	}
 

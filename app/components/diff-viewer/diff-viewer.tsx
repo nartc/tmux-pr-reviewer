@@ -480,7 +480,8 @@ function DiffViewerClient({
 																content,
 																filePath,
 															);
-															handleCloseComment();
+															// Don't call handleCloseComment() here
+															// The form's onClose() will handle it
 														}
 													: undefined
 											}

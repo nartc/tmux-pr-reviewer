@@ -3,7 +3,7 @@
 
 import { Button, Dialog, Flex, Text } from '@radix-ui/themes';
 import { Effect } from 'effect';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { redirect, useFetcher, useLoaderData, useNavigate } from 'react-router';
 import { Layout } from '../components/layout';
 import { runtime } from '../lib/effect-runtime';
@@ -90,18 +90,34 @@ export default function ReviewRepo() {
 		useLoaderData<typeof loader>();
 
 	const navigate = useNavigate();
-	const fetcher = useFetcher();
+	const fetcher = useFetcher<{ success: boolean; error?: string }>();
 	const [showDialog, setShowDialog] = useState(!signalFileExists);
+	const [isSettingUp, setIsSettingUp] = useState(false);
+
+	// Navigate after signal file is successfully created
+	useEffect(() => {
+		if (fetcher.state === 'idle' && fetcher.data && isSettingUp) {
+			// Signal file setup complete, now navigate
+			navigate(
+				`/review/${sessionId}?path=${encodeURIComponent(repoPath)}`,
+			);
+		}
+	}, [
+		fetcher.state,
+		fetcher.data,
+		isSettingUp,
+		navigate,
+		sessionId,
+		repoPath,
+	]);
 
 	const handleConfirm = (remember: boolean) => {
+		setIsSettingUp(true);
 		fetcher.submit(
 			{ repoPath, remember: remember.toString() },
 			{ method: 'POST', action: '/api/setup-signal' },
 		);
 		setShowDialog(false);
-
-		// Navigate to the review page after setup
-		navigate(`/review/${sessionId}?path=${encodeURIComponent(repoPath)}`);
 	};
 
 	const handleCancel = () => {

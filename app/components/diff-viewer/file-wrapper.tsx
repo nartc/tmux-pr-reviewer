@@ -122,7 +122,8 @@ export function FileDiffWrapper({
 												formMeta.lineStart,
 												formMeta.lineEnd,
 											);
-											handleCloseComment();
+											// Don't call handleCloseComment() here
+											// The form's onClose() will handle it
 										}
 									: undefined
 							}

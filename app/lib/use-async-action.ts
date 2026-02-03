@@ -42,6 +42,14 @@ export function useAsyncAction<T>(options?: UseAsyncActionOptions<T>) {
 				}
 			}
 		}
+
+		// Cleanup: ensure operation is ended if component unmounts during request
+		return () => {
+			if (wasSubmitting.current) {
+				endOperation(id);
+				wasSubmitting.current = false;
+			}
+		};
 	}, [
 		fetcher.state,
 		fetcher.data,

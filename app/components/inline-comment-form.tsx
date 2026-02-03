@@ -56,7 +56,8 @@ export function InlineCommentForm({
 	const handleSendNow = () => {
 		if (!content.trim() || !onSendNow) return;
 		onSendNow(content);
-		setContent('');
+		// Don't setContent('') here - form is closing anyway
+		// and the state update causes an unnecessary re-render/flash
 		onClose();
 	};
 
