@@ -107,9 +107,15 @@ export async function loop(options: LoopOptions = {}): Promise<void> {
 	while (true) {
 		if (existsSync(signalPath)) {
 			try {
-				const signal: SignalFile = JSON.parse(
-					readFileSync(signalPath, 'utf-8'),
-				);
+				const content = readFileSync(signalPath, 'utf-8').trim();
+
+				// Empty file means user opted in but no pending comments yet
+				if (!content) {
+					await sleep(2000);
+					continue;
+				}
+
+				const signal: SignalFile = JSON.parse(content);
 
 				if (signal.pendingCount > 0) {
 					console.log();
@@ -127,17 +133,17 @@ export async function loop(options: LoopOptions = {}): Promise<void> {
 						console.log();
 					}
 
-					// Delete signal file (fresh start for next batch)
+					// Clear signal file content (keep file, fresh start for next batch)
 					try {
-						unlinkSync(signalPath);
+						writeFileSync(signalPath, '');
 					} catch {
 						// Ignore
 					}
 				}
 			} catch {
-				// Invalid signal file, remove it
+				// Invalid JSON in signal file - clear it but keep the file
 				try {
-					unlinkSync(signalPath);
+					writeFileSync(signalPath, '');
 				} catch {
 					// Ignore
 				}

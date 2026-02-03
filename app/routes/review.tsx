@@ -10,6 +10,7 @@ import { DiffViewer } from '../components/diff-viewer/diff-viewer';
 import { EmptyDiff } from '../components/empty-states';
 import { FileExplorer, type DiffFile } from '../components/file-explorer';
 import { Layout } from '../components/layout';
+import { SettingsModal } from '../components/settings-modal';
 import { runtime } from '../lib/effect-runtime';
 import { CommentService, type Comment } from '../services/comment.service';
 import { GitService } from '../services/git.service';
@@ -60,12 +61,15 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 	if (setupSignal && repoPath) {
 		// Use internal fetch to call the API endpoint - avoids bundling issues with .server.ts imports
 		const origin = new URL(request.url).origin;
-		const formData = new FormData();
-		formData.append('repoPath', repoPath);
-		formData.append('remember', 'false');
+		const body = new URLSearchParams();
+		body.append('repoPath', repoPath);
+		body.append('remember', 'false');
 		await fetch(`${origin}/api/setup-signal`, {
 			method: 'POST',
-			body: formData,
+			body,
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
 		}).catch(() => {
 			// Silently ignore errors - signal file creation is best-effort
 		});
