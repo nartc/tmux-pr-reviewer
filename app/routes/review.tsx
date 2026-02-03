@@ -28,6 +28,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 	const { sessionId } = params;
 	const url = new URL(request.url);
 	const path = url.searchParams.get('path');
+	const setupSignal = url.searchParams.get('setupSignal') === 'true';
 
 	if (!sessionId) {
 		throw new Response('Session ID required', { status: 400 });
@@ -54,6 +55,16 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
 	if (!repoPath) {
 		throw new Response('No repository path available', { status: 400 });
+	}
+
+	// Auto-create signal file if requested (from auto-confirm preference)
+	if (setupSignal && repoPath) {
+		const { createSignalFile } = await import('../lib/signal-file.server');
+		await runtime.runPromise(
+			createSignalFile(repoPath, false).pipe(
+				Effect.catchAll(() => Effect.succeed({ success: false })),
+			),
+		);
 	}
 
 	return runtime.runPromise(
