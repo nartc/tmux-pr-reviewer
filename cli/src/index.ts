@@ -2,6 +2,7 @@
 // CLI entry point for local-pr-reviewer v2
 
 import { config } from './commands/config.js';
+import { init } from './commands/init.js';
 import { loop } from './commands/loop.js';
 import { setup } from './commands/setup.js';
 import { start } from './commands/start.js';
@@ -21,6 +22,7 @@ Usage:
 Commands:
   (default)     Start the review loop in current directory
   setup         Install and configure local-pr-reviewer
+  init          Initialize current project for local-pr-reviewer
   start         Start the review server only
   stop          Stop the review server
   config        Manage agent configuration
@@ -33,6 +35,7 @@ Examples:
   npx local-pr-reviewer
   npx local-pr-reviewer --agent opencode
   npx local-pr-reviewer setup
+  npx local-pr-reviewer init
   npx local-pr-reviewer config
   npx local-pr-reviewer config --set-default claude
   npx local-pr-reviewer config --set-project /path/to/repo opencode
@@ -87,6 +90,10 @@ async function main(): Promise<void> {
 	}
 
 	switch (command) {
+		case 'init':
+			await init();
+			break;
+
 		case 'start':
 			await start({
 				repo:
